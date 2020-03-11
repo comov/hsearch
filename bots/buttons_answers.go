@@ -110,18 +110,19 @@ func (b *Bot) photo(query *tgbotapi.CallbackQuery) {
 		}
 	}
 
-	imgs := make([]interface{}, 0)
-	for _, img := range images {
-		imgs = append(imgs, tgbotapi.NewInputMediaPhoto(img))
-	}
+	for _, album := range getSeparatedAlbums(images) {
+			imgs := make([]interface{}, 0)
+			for _, img := range album {
+				imgs = append(imgs, tgbotapi.NewInputMediaPhoto(img))
+			}
 
-	message := tgbotapi.NewMediaGroup(user.Chat, imgs)
-	message.ReplyToMessageID = query.Message.MessageID
+			message := tgbotapi.NewMediaGroup(user.Chat, imgs)
+			message.ReplyToMessageID = query.Message.MessageID
 
-	_, err = b.bot.Send(message)
-	if err != nil {
-		log.Println("[photo.Send] error:", err)
-		_, err = b.bot.Send(tgbotapi.NewMessage(user.Chat, "Видимо много фото, не получается отправить. Потом починю"))
+			_, err := b.bot.Send(message)
+			if err != nil {
+				log.Println("[photo.Send] sending album error:", err)
+			}
 	}
 
 	if len(images) != 0 {
@@ -130,4 +131,15 @@ func (b *Bot) photo(query *tgbotapi.CallbackQuery) {
 			waitMessage.MessageID,
 		))
 	}
+}
+
+// Separate images array to 10-items albums. Telegram API has limit: `max images in images album is 10`
+func getSeparatedAlbums(images []string) [][]string {
+	maxImages := 10
+	albums := make([][]string, 0, (len(images) + maxImages - 1) / maxImages)
+
+	for maxImages < len(images) {
+		images, albums = images[maxImages:], append(albums, images[0:maxImages:maxImages])
+	}
+	return append(albums, images)
 }
