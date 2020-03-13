@@ -67,8 +67,8 @@ func (b *Bot) Start() {
 		}
 
 		if update.Message != nil {
-			msg := "Нет среди доступных команд :("
 			if update.Message.IsCommand() {
+				msg := ""
 				switch update.Message.Command() {
 				case "start", "help":
 					msg = b.start(update.Message)
@@ -78,13 +78,15 @@ func (b *Bot) Start() {
 					msg = b.search(update.Message)
 				case "feedback":
 					msg = b.feedback(update.Message)
+				default:
+					msg = "Нет среди доступных команд :("
 				}
-			}
 
-			message := tgbotapi.NewMessage(update.Message.Chat.ID, msg)
-			_, err := b.bot.Send(message)
-			if err != nil {
-				log.Println("[Start.Message.Send] error: ", err)
+				message := tgbotapi.NewMessage(update.Message.Chat.ID, msg)
+				_, err := b.bot.Send(message)
+				if err != nil {
+					log.Println("[Start.Message.Send] error: ", err)
+				}
 			}
 		}
 	}
