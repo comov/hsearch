@@ -33,7 +33,7 @@ const noOffers = `Пока нет новых предложений`
 func DefaultMessage(offer *structs.Offer) string {
 	return fmt.Sprintf(templateMessage,
 		offer.Topic,
-		offer.Price,
+		offer.FullPrice,
 		offer.Rooms,
 		offer.Phone,
 		offer.Url,

@@ -1,7 +1,9 @@
 package structs
 
 import (
+	"log"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -12,6 +14,9 @@ const (
 	KindPhoto       = "photo"
 	KindDescription = "description"
 )
+
+var priceRegex = regexp.MustCompile(`\d+`)
+var currencyRegex = regexp.MustCompile(`[a-zA-Zа-яА-Я]+`)
 
 type (
 	// Chat - all users and communicate with bot in chats. Chat can be group,
@@ -24,13 +29,15 @@ type (
 		Type     string
 	}
 
-	// Offer - хранит все предложения о квартирах
+	// Offer - posted on the site.
 	Offer struct {
 		Id         uint64
 		Created    int64
 		Url        string
 		Topic      string
-		Price      string
+		FullPrice  string
+		Price      int
+		Currency   string // all currency is lower
 		Phone      string
 		Rooms      string
 		Body       string
@@ -83,10 +90,25 @@ func (o *Offer) parseTitle() string {
 	return o.Topic
 }
 
-// parsePrice - находит цену их баджика
+// parsePrice - find price from badge
 func (o *Offer) parsePrice() string {
-	o.Price = o.doc.Find("span.field-value.badge.badge-green").Text()
-	return o.Price
+	o.FullPrice = o.doc.Find("span.field-value.badge.badge-green").Text()
+
+	pInt := priceRegex.FindAllString(o.FullPrice, -1)
+	if len(pInt) == 1 {
+		p, err := strconv.Atoi(pInt[0])
+		if err != nil {
+			log.Printf("[parsePrice] %s with an error: %s", o.FullPrice, err)
+		}
+		o.Price = p
+	}
+
+	pCurrency := currencyRegex.FindAllString(o.FullPrice, -1)
+	if len(pCurrency) == 1 {
+		o.Currency = strings.ToLower(pCurrency[0])
+	}
+
+	return o.FullPrice
 }
 
 // parsePhone - находит номер телефона из настроек обхявления

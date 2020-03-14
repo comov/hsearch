@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/comov/hsearch/background"
 	"github.com/comov/hsearch/bots"
@@ -21,7 +22,8 @@ const (
 		"By default hsearch run offer manager and telegram" +
 		" bot.\nFor example: go run main.go\n\n" +
 		"Commands:\n" +
-		"\tmigrate - the command for run migration and create DB if not exist\n"
+		"\tmigrate - the command for run migration and create DB if not" +
+		" exist. Support\n\t the flag -dir for the directory of migrations\n"
 )
 
 func main() {
@@ -38,8 +40,17 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "migrate":
-			dir, _ := os.Getwd()
-			err = db.Migrate(path.Join(dir, "migrations"))
+			pathToMigrations := "migrations"
+			if len(os.Args) > 2 && strings.HasPrefix(os.Args[2], "-dir=") {
+				pathToMigrations = strings.TrimPrefix(os.Args[2], "-dir=")
+			}
+
+			if !strings.HasPrefix(pathToMigrations, "/") {
+				dir, _ := os.Getwd()
+				pathToMigrations = path.Join(dir, pathToMigrations)
+			}
+
+			err = db.Migrate(pathToMigrations)
 			if err != nil {
 				log.Fatalln("[main.storage.Migrate] error: ", err)
 			}
