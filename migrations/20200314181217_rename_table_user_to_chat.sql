@@ -20,9 +20,6 @@ alter table chat_dg_tmp rename to chat;
 create unique index chat_chat_index
     on chat (id);
 
-create unique index chat_name_uindex
-    on chat (username);
-
 -- +goose StatementEnd
 
 -- +goose Down
