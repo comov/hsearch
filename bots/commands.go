@@ -1,6 +1,7 @@
 package bots
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 
@@ -12,39 +13,38 @@ func (b *Bot) start(_ *tgbotapi.Message) string {
 }
 
 func (b *Bot) stop(message *tgbotapi.Message) string {
-	err := b.st.StopSearch(message.Chat.UserName)
+	err := b.st.StopSearch(message.Chat.ID)
 	if err != nil {
-		log.Println("[stop.StartSearchForUser] error:", err)
+		if err == sql.ErrNoRows {
+			first := "Этой группы"
+			second := "и так ничего сюда"
+			if message.Chat.IsPrivate() {
+				first = "Тебя"
+				second = "тебе и так ничего"
+			}
+			return fmt.Sprintf(stopNotFound, first, second)
+		}
+
+		log.Println("[stop.StopSearch] error:", err)
 		return "Прости, говнокод сломался"
 	}
 
-	return "Я больше не буду отправлять тебе квартиры. Пока :)"
+	return "Ok! Я больше не буду отправлять тебе квартиры"
 }
 
-func (b *Bot) search(message *tgbotapi.Message) string {
-	err := b.st.StartSearch(message.Chat.ID, message.Chat.UserName)
+func (b *Bot) search(m *tgbotapi.Message) string {
+	title := m.Chat.Title
+	if m.Chat.IsPrivate() {
+		title = fmt.Sprintf("%s %s", m.Chat.FirstName, m.Chat.LastName)
+	}
+
+	err := b.st.StartSearch(m.Chat.ID, m.Chat.UserName, title, m.Chat.Type)
 	if err != nil {
-		log.Println("[search.StartSearchForUser] error:", err)
+		log.Println("[search.StartSearchForChat] error:", err)
 		return "Прости, говнокод сломался"
 	}
 
 	return "Теперь я буду искать для тебя квартиры"
-}
-
-func (b *Bot) bookmarks(message *tgbotapi.Message) string {
-	offers, chat, err := b.st.Bookmarks(message.Chat.UserName)
-	if err != nil {
-		log.Println("[bookmarks.StartSearchForUser] error:", err)
-		return "Прости, говнокод сломался"
-	}
-
-	if len(offers) <= 0 {
-		return "Хм... У тебя пока нет квартир в закладках"
-	}
-
-	b.bookmarksMessages(offers, chat)
-
-	return fmt.Sprintf("Список отмеченных квартир %d", len(offers))
 }
 
 func (b *Bot) feedback(message *tgbotapi.Message) string {
@@ -54,7 +54,7 @@ func (b *Bot) feedback(message *tgbotapi.Message) string {
 
 	err := b.st.Feedback(message.Chat.ID, message.Chat.UserName, message.CommandArguments())
 	if err != nil {
-		log.Println("[feedback.StartSearchForUser] error:", err)
+		log.Println("[feedback.StartSearchForChat] error:", err)
 		return "Прости, даже фидбек может быть сломан"
 	}
 	return "Понял, предам!"

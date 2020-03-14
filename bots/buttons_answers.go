@@ -9,27 +9,27 @@ import (
 
 // initAnswers - содержит список всех зарегистированных кнопок
 func (b *Bot) initAnswers() {
-	b.answers["skip"] = authHandler(b.skip)
-	b.answers["dislike"] = authHandler(b.dislike)
-	b.answers["description"] = authHandler(b.description)
-	b.answers["photo"] = authHandler(b.photo)
+	b.answers["skip"] = b.skip
+	b.answers["dislike"] = b.dislike
+	b.answers["description"] = b.description
+	b.answers["photo"] = b.photo
 }
 
 // skip - обраьатывает нажатие на кнопку "Пропустить"
-func (b *Bot) skip(user *structs.User, query *tgbotapi.CallbackQuery) {
-	err := b.st.Skip(query.Message.MessageID, user)
+func (b *Bot) skip(query *tgbotapi.CallbackQuery) {
+	err := b.st.Skip(query.Message.MessageID, query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[skip.Skip] error:", err)
 		return
 	}
 
-	offer, err := b.st.ReadNextOffer(user)
+	offer, err := b.st.ReadNextOffer(query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[skip.ReadNextOffer] error:", err)
 		return
 	}
 
-	err = b.SendOffer(offer, user, query, "Покажу позже")
+	err = b.SendOffer(offer, query.Message.Chat.ID, query, "Покажу позже")
 	if err != nil {
 		log.Println("[skip.SendOffer] error:", err)
 		return
@@ -38,8 +38,11 @@ func (b *Bot) skip(user *structs.User, query *tgbotapi.CallbackQuery) {
 
 // dislike - this button delete order from chat and no more show to user that
 // order.
-func (b *Bot) dislike(user *structs.User, query *tgbotapi.CallbackQuery) {
-	messagesIds, err := b.st.Dislike(query.Message.MessageID, user)
+func (b *Bot) dislike(query *tgbotapi.CallbackQuery) {
+	messagesIds, err := b.st.Dislike(
+		query.Message.MessageID,
+		query.Message.Chat.ID,
+	)
 	if err != nil {
 		log.Println("[dislike.Dislike] error:", err)
 		return
@@ -54,7 +57,12 @@ func (b *Bot) dislike(user *structs.User, query *tgbotapi.CallbackQuery) {
 		}
 	}
 
-	err = b.SendOffer(nil, user, query, "Больше никогда не покажу")
+	err = b.SendOffer(
+		nil,
+		query.Message.Chat.ID,
+		query,
+		"Больше никогда не покажу",
+	)
 	if err != nil {
 		log.Println("[dislike.SendOffer] error:", err)
 		return
@@ -62,14 +70,17 @@ func (b *Bot) dislike(user *structs.User, query *tgbotapi.CallbackQuery) {
 }
 
 // description - return full description about order
-func (b *Bot) description(user *structs.User, query *tgbotapi.CallbackQuery) {
-	offerId, body, err := b.st.ReadOfferDescription(query.Message.MessageID, user)
+func (b *Bot) description(query *tgbotapi.CallbackQuery) {
+	offerId, body, err := b.st.ReadOfferDescription(
+		query.Message.MessageID,
+		query.Message.Chat.ID,
+	)
 	if err != nil {
 		log.Println("[description.ReadOfferDescription] error:", err)
 		return
 	}
 
-	message := tgbotapi.NewMessage(user.Chat, body)
+	message := tgbotapi.NewMessage(query.Message.Chat.ID, body)
 	message.ReplyToMessageID = query.Message.MessageID
 
 	send, err := b.bot.Send(message)
@@ -80,7 +91,7 @@ func (b *Bot) description(user *structs.User, query *tgbotapi.CallbackQuery) {
 	err = b.st.SaveMessage(
 		send.MessageID,
 		offerId,
-		user.Chat,
+		query.Message.Chat.ID,
 		structs.KindDescription,
 	)
 	if err != nil {
@@ -89,8 +100,10 @@ func (b *Bot) description(user *structs.User, query *tgbotapi.CallbackQuery) {
 }
 
 // photo - this button return all orders photos from site
-func (b *Bot) photo(user *structs.User, query *tgbotapi.CallbackQuery) {
-	offerId, images, err := b.st.ReadOfferImages(query.Message.MessageID, user)
+func (b *Bot) photo(query *tgbotapi.CallbackQuery) {
+	offerId, images, err := b.st.ReadOfferImages(
+		query.Message.MessageID, query.Message.Chat.ID,
+	)
 	if err != nil {
 		log.Println("[photo.ReadOfferDescription] error:", err)
 		return
@@ -99,7 +112,7 @@ func (b *Bot) photo(user *structs.User, query *tgbotapi.CallbackQuery) {
 	waitMessage := tgbotapi.Message{}
 	if len(images) != 0 {
 		waitMessage, err = b.bot.Send(tgbotapi.NewMessage(
-			user.Chat,
+			query.Message.Chat.ID,
 			WaitPhotoMessage(len(images)),
 		))
 		if err != nil {
@@ -113,7 +126,7 @@ func (b *Bot) photo(user *structs.User, query *tgbotapi.CallbackQuery) {
 			imgs = append(imgs, tgbotapi.NewInputMediaPhoto(img))
 		}
 
-		message := tgbotapi.NewMediaGroup(user.Chat, imgs)
+		message := tgbotapi.NewMediaGroup(query.Message.Chat.ID, imgs)
 		message.ReplyToMessageID = query.Message.MessageID
 
 		messages, err := b.SendGroupPhotos(message)
@@ -125,7 +138,7 @@ func (b *Bot) photo(user *structs.User, query *tgbotapi.CallbackQuery) {
 			err = b.st.SaveMessage(
 				msg.MessageID,
 				offerId,
-				user.Chat,
+				query.Message.Chat.ID,
 				structs.KindPhoto,
 			)
 			if err != nil {
@@ -156,15 +169,4 @@ func getSeparatedAlbums(images []string) [][]string {
 		images, albums = images[maxImages:], append(albums, images[0:maxImages:maxImages])
 	}
 	return append(albums, images)
-}
-
-// authHandler - handler that get the user from query and add to handle func
-func authHandler(f func(u *structs.User, q *tgbotapi.CallbackQuery)) func(*tgbotapi.CallbackQuery) {
-	return func(query *tgbotapi.CallbackQuery) {
-		user := &structs.User{
-			Chat:     query.Message.Chat.ID,
-			Username: query.Message.Chat.UserName,
-		}
-		f(user, query)
-	}
 }

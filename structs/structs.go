@@ -14,11 +14,14 @@ const (
 )
 
 type (
-	// User - telegram аккаунт пользователя
-	User struct {
+	// Chat - all users and communicate with bot in chats. Chat can be group,
+	// supergroup or private (type)
+	Chat struct {
+		Id       int64
 		Username string
-		Chat     int64
+		Title    string // in private chats, this field save user full name
 		Enable   bool
+		Type     string
 	}
 
 	// Offer - хранит все предложения о квартирах

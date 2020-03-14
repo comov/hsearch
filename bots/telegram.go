@@ -11,17 +11,16 @@ import (
 
 type (
 	Storage interface {
-		StartSearch(chat int64, username string) error
-		StopSearch(username string) error
-		Dislike(msgId int, user *structs.User) ([]int, error)
-		Skip(msgId int, user *structs.User) error
-		Bookmarks(username string) ([]*structs.Offer, int64, error)
+		StartSearch(id int64, username, title, chatType string) error
+		StopSearch(id int64) error
+		Dislike(msgId int, chatId int64) ([]int, error)
+		Skip(msgId int, chatId int64) error
 		Feedback(chat int64, username, body string) error
 
 		SaveMessage(msgId int, offerId uint64, chat int64, kind string) error
-		ReadOfferDescription(msgId int, user *structs.User) (uint64, string, error)
-		ReadOfferImages(msgId int, user *structs.User) (uint64, []string, error)
-		ReadNextOffer(user *structs.User) (*structs.Offer, error)
+		ReadOfferDescription(msgId int, chatId int64) (uint64, string, error)
+		ReadOfferImages(msgId int, chatId int64) (uint64, []string, error)
+		ReadNextOffer(chatId int64) (*structs.Offer, error)
 	}
 
 	answer map[string]func(query *tgbotapi.CallbackQuery)
@@ -96,7 +95,7 @@ func (b *Bot) Start() {
 // SendOffer - отправляет offer пользователю, так же региструрует в бд под
 // какие номером сообщения было отправленно сообщение и меняет клавиатуру в
 // зависимости от offer
-func (b *Bot) SendOffer(offer *structs.Offer, user *structs.User, query *tgbotapi.CallbackQuery, answer string) error {
+func (b *Bot) SendOffer(offer *structs.Offer, chatId int64, query *tgbotapi.CallbackQuery, answer string) error {
 	if query != nil {
 		/* TODO: Найти offer по ID и сделать соответствующее действие */
 
@@ -110,7 +109,7 @@ func (b *Bot) SendOffer(offer *structs.Offer, user *structs.User, query *tgbotap
 		return nil
 	}
 
-	message := tgbotapi.NewMessage(user.Chat, DefaultMessage(offer))
+	message := tgbotapi.NewMessage(chatId, DefaultMessage(offer))
 	message.DisableWebPagePreview = true
 	message.ReplyMarkup = getKeyboard(offer)
 
@@ -119,7 +118,7 @@ func (b *Bot) SendOffer(offer *structs.Offer, user *structs.User, query *tgbotap
 		return err
 	}
 
-	err = b.st.SaveMessage(send.MessageID, offer.Id, user.Chat, structs.KindOffer)
+	err = b.st.SaveMessage(send.MessageID, offer.Id, chatId, structs.KindOffer)
 	if err != nil {
 		// Если и произошла ошибка, то пользователь уже получил сообщение в
 		// телеграм. Мы просто оповещаем разработчика через лог и говорим, что
@@ -130,6 +129,6 @@ func (b *Bot) SendOffer(offer *structs.Offer, user *structs.User, query *tgbotap
 	return nil
 }
 
-func (b *Bot) SendPreviewMessage(offer *structs.Offer, user *structs.User) error {
-	return b.SendOffer(offer, user, nil, "")
+func (b *Bot) SendPreviewMessage(offer *structs.Offer, chatId int64) error {
+	return b.SendOffer(offer, chatId, nil, "")
 }

@@ -28,13 +28,13 @@ import (
 type (
 	Storage interface {
 		WriteOffers(offer []*structs.Offer) (int, error)
-		ReadUsersForMatching() ([]*structs.User, error)
-		ReadNextOffer(user *structs.User) (*structs.Offer, error)
+		ReadChatsForMatching() ([]*structs.Chat, error)
+		ReadNextOffer(chatId int64) (*structs.Offer, error)
 		CleanFromExistOrders(offers map[uint64]string) error
 	}
 
 	Bot interface {
-		SendPreviewMessage(offer *structs.Offer, user *structs.User) error
+		SendPreviewMessage(offer *structs.Offer, chatId int64) error
 	}
 
 	OfferManager struct {
@@ -117,49 +117,46 @@ func (m *OfferManager) parser() {
 	}
 }
 
-// broker - вытягивает всех пользователй их бд и начинает для них рассылку. Если
-// пользователь не увидел первое сообщение, то при следущем вызове от parser,
-// broker должен отослать следующее если есть. Если нет, то пропускаем
-// пользователя
+// broker - вытягивает вск чаты из бд и начинает для них рассылку
 func (m *OfferManager) broker() {
-	users, err := m.st.ReadUsersForMatching()
+	chats, err := m.st.ReadChatsForMatching()
 	if err != nil {
-		log.Println("[offer_manager.ReadUsersForOrder] error:", err)
+		log.Println("[offer_manager.ReadChatForOrder] error:", err)
 		return
 	}
 
-	if len(users) <= 0 {
-		log.Println("[offer_manager.users.len] no users")
+	if len(chats) <= 0 {
+		log.Println("[offer_manager.chats.len] no chats")
 		return
 	}
 
-	for _, user := range users {
-		// TODO: каждый раз создавать горутину на пользователя, это жирно. Нужно
+	for _, chat := range chats {
+		// TODO: каждый раз создавать горутину на чат, это жирно. Нужно
 		//  сделать воркеров которые будут создаваться при старте, затем
-		//  передавать им пользователей и они будут заниматься matching
-		go m.matching(user)
+		//  передавать им чаты и они будут заниматься matching
+		go m.matching(chat)
 	}
 }
 
-func (m *OfferManager) matching(user *structs.User) {
-	log.Printf("[offer_manager] Start matching for user %s", user.Username)
+func (m *OfferManager) matching(chat *structs.Chat) {
+	log.Printf("[offer_manager] Start matching for %s", chat.Title)
 
-	offer, err := m.st.ReadNextOffer(user)
+	offer, err := m.st.ReadNextOffer(chat.Id)
 	if err != nil {
-		log.Printf("[offer_manager] Can't read offer for user %s with an error %s\n", user.Username, err)
+		log.Printf("[offer_manager] Can't read offer for %s with an error %s\n", chat.Title, err)
 		return
 	}
 
 	if offer == nil {
-		log.Printf("[offer_manager] For user %s not new offers", user.Username)
+		log.Printf("[offer_manager] For %s not new offers", chat.Title)
 		return
 	}
 
-	err = m.bot.SendPreviewMessage(offer, user)
+	err = m.bot.SendPreviewMessage(offer, chat.Id)
 	if err != nil {
-		log.Printf("[offer_manager] Can't send message for user `%s` with an error %s\n", user.Username, err)
+		log.Printf("[offer_manager] Can't send message for `%s` with an error %s\n", chat.Title, err)
 		return
 	}
 
-	log.Printf("[offer_manager] Successfully send offer %d for user %s\n", offer.Id, user.Username)
+	log.Printf("[offer_manager] Successfully send offer %d for %s\n", offer.Id, chat.Title)
 }

@@ -171,15 +171,17 @@ func (c *Connector) CleanFromExistOrders(offers map[uint64]string) error {
 	return nil
 }
 
-// ReadUsersForOrder - достает пользователей для которых нужно сделать рассылку
-func (c *Connector) ReadUsersForMatching() ([]*structs.User, error) {
+// ReadChatsForMatching - read all the chats for which the mailing list has
+// to be done
+func (c *Connector) ReadChatsForMatching() ([]*structs.Chat, error) {
 	rows, err := c.DB.Query(`
 	SELECT DISTINCT
-       u.username,
-       u.chat
-	FROM user u
-	LEFT JOIN answer uto on (u.chat = uto.chat and uto.dislike = 0)
-	WHERE u.enable = 1;`)
+		c.id,
+		c.username,
+		c.title
+	FROM chat c
+	LEFT JOIN answer uto on (c.id = uto.chat and uto.dislike = 0)
+	WHERE c.enable = 1;`)
 	if err != nil {
 		return nil, err
 	}
@@ -187,139 +189,96 @@ func (c *Connector) ReadUsersForMatching() ([]*structs.User, error) {
 	defer func() {
 		err := rows.Close()
 		if err != nil {
-			log.Println("[ReadUsersForOrder.Close] error:", err)
+			log.Println("[ReadChatsForMatching.Close] error:", err)
 		}
 	}()
 
-	users := make([]*structs.User, 0)
+	chats := make([]*structs.Chat, 0)
 	for rows.Next() {
-		user := new(structs.User)
+		chat := new(structs.Chat)
 		err := rows.Scan(
-			&user.Username,
-			&user.Chat,
+			&chat.Id,
+			&chat.Username,
+			&chat.Title,
 		)
 		if err != nil {
-			log.Println("[ReadUsersForOrder.Scan] error:", err)
+			log.Println("[ReadChatsForMatching.Scan] error:", err)
 			continue
 		}
 
-		users = append(users, user)
+		chats = append(chats, chat)
 	}
 
-	return users, nil
+	return chats, nil
 }
 
-func (c *Connector) StartSearch(chat int64, username string) error {
-	user := &structs.User{
-		Username: username,
-		Chat:     chat,
-	}
-
-	err := c.ReadUser(user)
+// StartSearch - register new user or group if not exist or enable receive new
+// offers.
+func (c *Connector) StartSearch(id int64, username, title, cType string) error {
+	chat, err := c.ReadChat(id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			err = c.WriteUser(user)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	_, err = c.DB.Exec("UPDATE user SET enable = 1 WHERE username = ?;", user.Username)
-	return err
-}
-
-func (c *Connector) WriteUser(user *structs.User) error {
-	_, err := c.DB.Exec(
-		"INSERT INTO user (username, chat) VALUES (?, ?);",
-		user.Username,
-		user.Chat,
-	)
-	return err
-}
-
-func (c *Connector) ReadUser(user *structs.User) error {
-	err := c.DB.QueryRow(
-		"SELECT chat, enable FROM user WHERE username = ?;",
-		user.Username,
-	).Scan(
-		&user.Chat,
-		&user.Enable,
-	)
-	return err
-}
-
-func (c *Connector) StopSearch(username string) error {
-	user := &structs.User{Username: username}
-	err := c.ReadUser(user)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil
+			_, err := c.DB.Exec(
+				`INSERT INTO chat (id, username, title, enable, c_type)
+						VALUES (?, ?, ?, ?, ?);`,
+				id,
+				username,
+				title,
+				true,
+				cType,
+			)
+			return err
 		}
 		return err
 	}
 
-	if user.Enable {
-		_, err = c.DB.Exec("UPDATE user SET enable = 0 WHERE username = ?;", user.Username)
-	}
-
+	_, err = c.DB.Exec("UPDATE chat SET enable = 1 WHERE id = ?;", chat.Id)
 	return err
 }
 
-func (c *Connector) Bookmarks(username string) ([]*structs.Offer, int64, error) {
-	user := &structs.User{Username: username}
-	err := c.ReadUser(user)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	rows, err := c.DB.Query(`SELECT
-       id,
-       url,
-       topic,
-       price,
-       phone,
-       room_numbers,
-       images
-	FROM offer
-	LEFT JOIN answer uto on (offer.id = uto.offer_id AND uto.chat = ?)
-	WHERE like = 1;`,
-		user.Chat,
+// ReadChat - return chat with user or with group if exist or return error.
+func (c *Connector) ReadChat(id int64) (*structs.Chat, error) {
+	chat := &structs.Chat{}
+	err := c.DB.QueryRow(
+		`SELECT id, username, title, enable, c_type
+				FROM chat
+				WHERE id = ?;`,
+		id,
+	).Scan(
+		&chat.Id,
+		&chat.Username,
+		&chat.Title,
+		&chat.Enable,
+		&chat.Type,
 	)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			log.Println("[Bookmarks.Close] error:", err)
-		}
-	}()
-
-	offers := make([]*structs.Offer, 0)
-	for rows.Next() {
-		offer := new(structs.Offer)
-		err := rows.Scan(
-			&offer.Id,
-			&offer.Url,
-			&offer.Topic,
-			&offer.Price,
-			&offer.Phone,
-			&offer.Rooms,
-			&offer.Images,
-		)
-		if err != nil {
-			return nil, 0, err
-		}
-		offers = append(offers, offer)
-	}
-
-	return offers, user.Chat, nil
+	return chat, err
 }
 
+// StopSearch - disable receive message about new offers.
+func (c *Connector) StopSearch(id int64) error {
+	resp, err := c.DB.Exec("UPDATE chat SET enable = 0 WHERE id = ?;", id)
+	if err != nil {
+		return err
+	}
+
+	affect, err := resp.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if affect == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// SaveMessage - when we send user or group offer, description or photos, we
+// save this message for subsequent removal from chat, if need.
 func (c *Connector) SaveMessage(msgId int, offerId uint64, chat int64, kind string) error {
-	_, err := c.DB.Exec("INSERT INTO tg_messages (message_id, offer_id, kind, chat, created) VALUES (?, ?, ?, ?, ?);",
+	_, err := c.DB.Exec(
+		`INSERT INTO tg_messages (message_id, offer_id, kind, chat, created)
+ 				VALUES (?, ?, ?, ?, ?);`,
 		msgId,
 		offerId,
 		kind,
@@ -330,13 +289,18 @@ func (c *Connector) SaveMessage(msgId int, offerId uint64, chat int64, kind stri
 	return err
 }
 
-func (c *Connector) Dislike(msgId int, user *structs.User) ([]int, error) {
+// Dislike - mark offer as bad for user or group and return all message ids
+// (description and photos) for delete from chat.
+func (c *Connector) Dislike(msgId int, chatId int64) ([]int, error) {
 	offerId := uint64(0)
 	msgIds := make([]int, 0)
 	err := c.DB.QueryRow(
-		"SELECT offer_id FROM tg_messages WHERE message_id = ? AND chat = ?;",
+		`SELECT offer_id
+				FROM tg_messages
+				WHERE message_id = ?
+					AND chat = ?;`,
 		msgId,
-		user.Chat,
+		chatId,
 	).Scan(
 		&offerId,
 	)
@@ -344,14 +308,10 @@ func (c *Connector) Dislike(msgId int, user *structs.User) ([]int, error) {
 		return msgIds, err
 	}
 
-	err = c.ReadUser(user)
-	if err != nil {
-		return msgIds, err
-	}
-
 	_, err = c.DB.Exec(
-		"INSERT INTO answer (chat, offer_id, dislike, created) VALUES (?, ?, ?, ?);",
-		user.Chat,
+		`INSERT INTO answer (chat, offer_id, dislike, created)
+				VALUES (?, ?, ?, ?);`,
+		chatId,
 		offerId,
 		1,
 		time.Now().Unix(),
@@ -360,7 +320,7 @@ func (c *Connector) Dislike(msgId int, user *structs.User) ([]int, error) {
 	rows, err := c.DB.Query(
 		`SELECT message_id FROM tg_messages WHERE offer_id = ? AND chat = ?;`,
 		offerId,
-		user.Chat,
+		chatId,
 	)
 
 	if err != nil {
@@ -390,12 +350,12 @@ func (c *Connector) Dislike(msgId int, user *structs.User) ([]int, error) {
 	return msgIds, err
 }
 
-func (c *Connector) Skip(msgId int, user *structs.User) error {
+func (c *Connector) Skip(msgId int, chatId int64) error {
 	offerId := uint64(0)
 	err := c.DB.QueryRow(
 		"SELECT offer_id FROM tg_messages WHERE message_id = ? AND chat = ?;",
 		msgId,
-		user.Chat,
+		chatId,
 	).Scan(
 		&offerId,
 	)
@@ -403,15 +363,10 @@ func (c *Connector) Skip(msgId int, user *structs.User) error {
 		return err
 	}
 
-	err = c.ReadUser(user)
-	if err != nil {
-		return err
-	}
-
 	skipTime := time.Now().Add(c.skipTime).Unix()
 	_, err = c.DB.Exec(
 		"INSERT INTO answer (chat, offer_id, skip, created) VALUES (?, ?, ?, ?);",
-		user.Chat,
+		chatId,
 		offerId,
 		skipTime,
 		time.Now().Unix(),
@@ -419,16 +374,11 @@ func (c *Connector) Skip(msgId int, user *structs.User) error {
 	return err
 }
 
-func (c *Connector) ReadNextOffer(user *structs.User) (*structs.Offer, error) {
-	err := c.ReadUser(user)
-	if err != nil {
-		return nil, nil
-	}
-
+func (c *Connector) ReadNextOffer(chatId int64) (*structs.Offer, error) {
 	offer := new(structs.Offer)
 	now := time.Now()
 
-	err = c.DB.QueryRow(`
+	err := c.DB.QueryRow(`
 	SELECT DISTINCT
 	   id,
        url,
@@ -446,8 +396,8 @@ func (c *Connector) ReadNextOffer(user *structs.User) (*structs.Offer, error) {
 	  AND sm.created IS NULL
 	ORDER BY of.created;
 	`,
-		user.Chat,
-		user.Chat,
+		chatId,
+		chatId,
 		now.Add(-c.freshOffersTime).Unix(),
 	).Scan(
 		&offer.Id,
@@ -470,12 +420,12 @@ func (c *Connector) ReadNextOffer(user *structs.User) (*structs.Offer, error) {
 	return offer, nil
 }
 
-func (c *Connector) ReadOfferDescription(msgId int, user *structs.User) (uint64, string, error) {
+func (c *Connector) ReadOfferDescription(msgId int, chatId int64) (uint64, string, error) {
 	offerId := uint64(0)
 	err := c.DB.QueryRow(
 		"SELECT offer_id FROM tg_messages WHERE message_id = ? AND chat = ?;",
 		msgId,
-		user.Chat,
+		chatId,
 	).Scan(
 		&offerId,
 	)
@@ -500,14 +450,14 @@ func (c *Connector) ReadOfferDescription(msgId int, user *structs.User) (uint64,
 	return offerId, description, nil
 }
 
-func (c *Connector) ReadOfferImages(msgId int, user *structs.User) (uint64, []string, error) {
+func (c *Connector) ReadOfferImages(msgId int, chatId int64) (uint64, []string, error) {
 	offerId := uint64(0)
 	images := make([]string, 0)
 
 	err := c.DB.QueryRow(
 		"SELECT offer_id FROM tg_messages WHERE message_id = ? AND chat = ?;",
 		msgId,
-		user.Chat,
+		chatId,
 	).Scan(
 		&offerId,
 	)

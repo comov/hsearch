@@ -27,6 +27,7 @@ const templateMessage = `
 Ссылка: %s
 `
 
+const stopNotFound = `%s нет в базе. Это значит что я %s не отправлю`
 const noOffers = `Пока нет новых предложений`
 
 func DefaultMessage(offer *structs.Offer) string {
@@ -41,7 +42,7 @@ func DefaultMessage(offer *structs.Offer) string {
 
 func (b *Bot) bookmarksMessages(offers []*structs.Offer, chat int64) {
 	for _, offer := range offers {
-		err := b.SendOffer(offer, &structs.User{Chat: chat}, nil, "")
+		err := b.SendOffer(offer, chat, nil, "")
 		if err != nil {
 			log.Println("[bookmarksMessages.SendOffer] error:", err)
 		}
