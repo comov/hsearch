@@ -40,24 +40,22 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "migrate":
-			pathToMigrations := "migrations"
-			if len(os.Args) > 2 && strings.HasPrefix(os.Args[2], "-dir=") {
-				pathToMigrations = strings.TrimPrefix(os.Args[2], "-dir=")
+			// run migrations and stop
+			err = db.Migrate(migrationPath())
+			if err != nil {
+				log.Fatalln("[main.storage.Migrate] error: ", err)
 			}
-
-			if !strings.HasPrefix(pathToMigrations, "/") {
-				dir, _ := os.Getwd()
-				pathToMigrations = path.Join(dir, pathToMigrations)
-			}
-
-			err = db.Migrate(pathToMigrations)
+			return
+		case "withmigrate":
+			// like migration bud not stop
+			err = db.Migrate(migrationPath())
 			if err != nil {
 				log.Fatalln("[main.storage.Migrate] error: ", err)
 			}
 		default:
 			fmt.Printf(helpCommands, os.Args[1])
+			return
 		}
-		return
 	}
 
 	// Telegram bot и Offer manager в дальнейшем нужно запускать как отдельные
@@ -69,4 +67,18 @@ func main() {
 
 	omr := background.StartOfferManager(BaseURL, cnf, db, telegramBot)
 	omr.Start()
+}
+
+// migrationPath - return path to migrations file
+func migrationPath() string {
+	pathToMigrations := "migrations"
+	if len(os.Args) > 2 && strings.HasPrefix(os.Args[2], "-dir=") {
+		pathToMigrations = strings.TrimPrefix(os.Args[2], "-dir=")
+	}
+
+	if !strings.HasPrefix(pathToMigrations, "/") {
+		dir, _ := os.Getwd()
+		pathToMigrations = path.Join(dir, pathToMigrations)
+	}
+	return pathToMigrations
 }

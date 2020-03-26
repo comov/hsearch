@@ -62,31 +62,11 @@ func (b *Bot) Start() {
 	log.Println("[bot] Start listen Telegram chanel")
 	for update := range updates {
 		if update.CallbackQuery != nil {
-			b.answers[update.CallbackQuery.Data](update.CallbackQuery)
+			go b.callbackHandler(update)
 		}
 
 		if update.Message != nil {
-			if update.Message.IsCommand() {
-				msg := ""
-				switch update.Message.Command() {
-				case "start", "help":
-					msg = b.start(update.Message)
-				case "stop":
-					msg = b.stop(update.Message)
-				case "search":
-					msg = b.search(update.Message)
-				case "feedback":
-					msg = b.feedback(update.Message)
-				default:
-					msg = "Нет среди доступных команд :("
-				}
-
-				message := tgbotapi.NewMessage(update.Message.Chat.ID, msg)
-				_, err := b.bot.Send(message)
-				if err != nil {
-					log.Println("[Start.Message.Send] error: ", err)
-				}
-			}
+			go b.messageHandler(update)
 		}
 	}
 }
@@ -131,4 +111,34 @@ func (b *Bot) SendOffer(offer *structs.Offer, chatId int64, query *tgbotapi.Call
 
 func (b *Bot) SendPreviewMessage(offer *structs.Offer, chatId int64) error {
 	return b.SendOffer(offer, chatId, nil, "")
+}
+
+// messageHandler - handle all user message from user in go routines
+func (b *Bot) messageHandler(update tgbotapi.Update) {
+	if update.Message.IsCommand() {
+		msg := ""
+		switch update.Message.Command() {
+		case "start", "help":
+			msg = b.start(update.Message)
+		case "stop":
+			msg = b.stop(update.Message)
+		case "search":
+			msg = b.search(update.Message)
+		case "feedback":
+			msg = b.feedback(update.Message)
+		default:
+			msg = "Нет среди доступных команд :("
+		}
+
+		message := tgbotapi.NewMessage(update.Message.Chat.ID, msg)
+		_, err := b.bot.Send(message)
+		if err != nil {
+			log.Println("[Start.Message.Send] error: ", err)
+		}
+	}
+}
+
+// callbackHandler - handle all callback from user in go routines
+func (b *Bot) callbackHandler(update tgbotapi.Update) {
+	b.answers[update.CallbackQuery.Data](update.CallbackQuery)
 }

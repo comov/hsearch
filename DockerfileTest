@@ -1,9 +1,7 @@
-FROM golang:1.13.1-alpine3.10
+FROM golang:1.14.1-alpine3.11
 
-RUN apk add --no-cache g++
+RUN apk add --no-cache git gcc g++
 
 COPY . /srv
 
-RUN set -x \
-    && cd /srv \
-    && go test -mod vendor -v ./...
+RUN cd /srv && go test -v ./...

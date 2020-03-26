@@ -1,6 +1,6 @@
 module github.com/comov/hsearch
 
-go 1.13
+go 1.14
 
 require (
 	github.com/PuerkitoBio/goquery v1.5.0
