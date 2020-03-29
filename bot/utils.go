@@ -1,9 +1,11 @@
-package bots
+package bot
 
 import (
 	"encoding/json"
 	"net/url"
 	"strconv"
+
+	"github.com/comov/hsearch/structs"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -59,4 +61,19 @@ func buildParams(config tgbotapi.MediaGroupConfig) (url.Values, error) {
 	v.Add("media", string(data))
 
 	return v, nil
+}
+
+
+// SendOffer - send the offer to a chat and save the delivery report to a chat
+//  room
+func (b *Bot) SendOffer(offer *structs.Offer, chatId int64) error {
+	message := tgbotapi.NewMessage(chatId, DefaultMessage(offer))
+	message.DisableWebPagePreview = true
+	message.ReplyMarkup = getKeyboard(offer)
+
+	send, err := b.bot.Send(message)
+	if err != nil {
+		return err
+	}
+	return b.storage.SaveMessage(send.MessageID, offer.Id, chatId, structs.KindOffer)
 }

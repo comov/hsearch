@@ -1,4 +1,4 @@
-package bots
+package bot
 
 import (
 	"log"
@@ -23,12 +23,12 @@ type (
 		ReadNextOffer(chatId int64) (*structs.Offer, error)
 	}
 
-	answer map[string]func(query *tgbotapi.CallbackQuery)
+	callback func(query *tgbotapi.CallbackQuery)
 
 	Bot struct {
-		bot     *tgbotapi.BotAPI
-		st      Storage
-		answers answer
+		bot       *tgbotapi.BotAPI
+		storage   Storage
+		callbacks map[string]callback
 	}
 )
 
@@ -40,12 +40,12 @@ func NewTelegramBot(cnf *configs.Config, st Storage) *Bot {
 	}
 
 	bb := &Bot{
-		bot:     bot,
-		st:      st,
-		answers: make(answer, 0),
+		bot:       bot,
+		storage:   st,
+		callbacks: make(map[string]callback, 0),
 	}
 
-	bb.initAnswers()
+	bb.registerCallbacks()
 	return bb
 }
 
@@ -71,46 +71,34 @@ func (b *Bot) Start() {
 	}
 }
 
-// TODO: It looks like shit. Please, rewrite this code :cry:
-// SendOffer - отправляет offer пользователю, так же региструрует в бд под
-// какие номером сообщения было отправленно сообщение и меняет клавиатуру в
-// зависимости от offer
-func (b *Bot) SendOffer(offer *structs.Offer, chatId int64, query *tgbotapi.CallbackQuery, answer string) error {
-	if query != nil {
-		/* TODO: Найти offer по ID и сделать соответствующее действие */
+// registerCallbacks - register all callbacks
+func (b *Bot) registerCallbacks() {
+	// order callbacks
+	b.callbacks["skip"] = b.skip
+	b.callbacks["dislike"] = b.dislike
+	b.callbacks["description"] = b.description
+	b.callbacks["photo"] = b.photo
 
-		_, err := b.bot.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, answer))
-		if err != nil {
-			log.Println("[SendOffer.AnswerCallbackQuery] error: ", err)
-		}
-	}
+	// settings callbacks
+	b.callbacks["back"] = b.backCallback
+	b.callbacks["settings"] = b.settingsCallback
 
-	if offer == nil {
-		return nil
-	}
+	// settings search callbacks
+	b.callbacks["search"] = b.searchCallback
+	b.callbacks["searchOn"] = b.searchCallback
+	b.callbacks["searchOff"] = b.searchCallback
 
-	message := tgbotapi.NewMessage(chatId, DefaultMessage(offer))
-	message.DisableWebPagePreview = true
-	message.ReplyMarkup = getKeyboard(offer)
-
-	send, err := b.bot.Send(message)
-	if err != nil {
-		return err
-	}
-
-	err = b.st.SaveMessage(send.MessageID, offer.Id, chatId, structs.KindOffer)
-	if err != nil {
-		// Если и произошла ошибка, то пользователь уже получил сообщение в
-		// телеграм. Мы просто оповещаем разработчика через лог и говорим, что
-		// отправка сообщения была успешно
-		log.Println("[SendOffer.SaveMessage] error:", err)
-	}
-
-	return nil
+	// settings filters callbacks
+	b.callbacks["filters"] = b.filtersCallback
+	b.callbacks["withPhotoOn"] = b.withPhotoCallback
+	b.callbacks["withPhotoOff"] = b.withPhotoCallback
+	b.callbacks["priceKGS"] = b.priceKGSCallback
+	b.callbacks["priceUSD"] = b.priceUSDCallback
 }
 
-func (b *Bot) SendPreviewMessage(offer *structs.Offer, chatId int64) error {
-	return b.SendOffer(offer, chatId, nil, "")
+// callbackHandler - handle all callback from user in go routines
+func (b *Bot) callbackHandler(update tgbotapi.Update) {
+	b.callbacks[update.CallbackQuery.Data](update.CallbackQuery)
 }
 
 // messageHandler - handle all user message from user in go routines
@@ -126,6 +114,10 @@ func (b *Bot) messageHandler(update tgbotapi.Update) {
 			msg = b.search(update.Message)
 		case "feedback":
 			msg = b.feedback(update.Message)
+		case "settings":
+			b.callbacks["settings"](&tgbotapi.CallbackQuery{
+				Message: update.Message,
+			})
 		default:
 			msg = "Нет среди доступных команд :("
 		}
@@ -136,9 +128,4 @@ func (b *Bot) messageHandler(update tgbotapi.Update) {
 			log.Println("[Start.Message.Send] error: ", err)
 		}
 	}
-}
-
-// callbackHandler - handle all callback from user in go routines
-func (b *Bot) callbackHandler(update tgbotapi.Update) {
-	b.answers[update.CallbackQuery.Data](update.CallbackQuery)
 }

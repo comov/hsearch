@@ -1,35 +1,58 @@
-package bots
+package bot
 
 import (
 	"log"
 
 	"github.com/comov/hsearch/structs"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-// initAnswers - содержит список всех зарегистированных кнопок
-func (b *Bot) initAnswers() {
-	b.answers["skip"] = b.skip
-	b.answers["dislike"] = b.dislike
-	b.answers["description"] = b.description
-	b.answers["photo"] = b.photo
+var (
+	skipButton        = tgbotapi.NewInlineKeyboardButtonData("Пропустить", "skip")
+	dislikeButton     = tgbotapi.NewInlineKeyboardButtonData("Точно нет!", "dislike")
+	descriptionButton = tgbotapi.NewInlineKeyboardButtonData("Описание", "description")
+	photoButton       = tgbotapi.NewInlineKeyboardButtonData("Фото", "photo")
+)
+
+func getKeyboard(offer *structs.Offer) tgbotapi.InlineKeyboardMarkup {
+	row1 := tgbotapi.NewInlineKeyboardRow(dislikeButton)
+	row2 := tgbotapi.NewInlineKeyboardRow()
+
+	if len(offer.Body) != 0 {
+		row2 = append(row2, descriptionButton)
+	}
+
+	if offer.Images != 0 {
+		row2 = append(row2, photoButton)
+	}
+
+	return tgbotapi.NewInlineKeyboardMarkup(row1, row2)
 }
 
 // skip - обраьатывает нажатие на кнопку "Пропустить"
 func (b *Bot) skip(query *tgbotapi.CallbackQuery) {
-	err := b.st.Skip(query.Message.MessageID, query.Message.Chat.ID)
+	err := b.storage.Skip(query.Message.MessageID, query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[skip.Skip] error:", err)
 		return
 	}
 
-	offer, err := b.st.ReadNextOffer(query.Message.Chat.ID)
+	offer, err := b.storage.ReadNextOffer(query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[skip.ReadNextOffer] error:", err)
 		return
 	}
 
-	err = b.SendOffer(offer, query.Message.Chat.ID, query, "Покажу позже")
+	_, err = b.bot.AnswerCallbackQuery(tgbotapi.NewCallback(
+		query.ID, "Покажу позже",
+	))
+
+	if err != nil {
+		log.Println("[skip.AnswerCallbackQuery] error:", err)
+	}
+
+	err = b.SendOffer(offer, query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[skip.SendOffer] error:", err)
 		return
@@ -39,7 +62,7 @@ func (b *Bot) skip(query *tgbotapi.CallbackQuery) {
 // dislike - this button delete order from chat and no more show to user that
 // order.
 func (b *Bot) dislike(query *tgbotapi.CallbackQuery) {
-	messagesIds, err := b.st.Dislike(
+	messagesIds, err := b.storage.Dislike(
 		query.Message.MessageID,
 		query.Message.Chat.ID,
 	)
@@ -57,21 +80,18 @@ func (b *Bot) dislike(query *tgbotapi.CallbackQuery) {
 		}
 	}
 
-	err = b.SendOffer(
-		nil,
-		query.Message.Chat.ID,
-		query,
-		"Больше никогда не покажу",
-	)
+	_, err = b.bot.AnswerCallbackQuery(tgbotapi.NewCallback(
+		query.ID, "Больше никогда не покажу",
+	))
 	if err != nil {
-		log.Println("[dislike.SendOffer] error:", err)
+		log.Println("[dislike.AnswerCallbackQuery] error:", err)
 		return
 	}
 }
 
 // description - return full description about order
 func (b *Bot) description(query *tgbotapi.CallbackQuery) {
-	offerId, body, err := b.st.ReadOfferDescription(
+	offerId, body, err := b.storage.ReadOfferDescription(
 		query.Message.MessageID,
 		query.Message.Chat.ID,
 	)
@@ -88,7 +108,7 @@ func (b *Bot) description(query *tgbotapi.CallbackQuery) {
 		log.Println("[description.Send] error:", err)
 	}
 
-	err = b.st.SaveMessage(
+	err = b.storage.SaveMessage(
 		send.MessageID,
 		offerId,
 		query.Message.Chat.ID,
@@ -101,7 +121,7 @@ func (b *Bot) description(query *tgbotapi.CallbackQuery) {
 
 // photo - this button return all orders photos from site
 func (b *Bot) photo(query *tgbotapi.CallbackQuery) {
-	offerId, images, err := b.st.ReadOfferImages(
+	offerId, images, err := b.storage.ReadOfferImages(
 		query.Message.MessageID, query.Message.Chat.ID,
 	)
 	if err != nil {
@@ -135,7 +155,7 @@ func (b *Bot) photo(query *tgbotapi.CallbackQuery) {
 		}
 
 		for _, msg := range messages {
-			err = b.st.SaveMessage(
+			err = b.storage.SaveMessage(
 				msg.MessageID,
 				offerId,
 				query.Message.Chat.ID,

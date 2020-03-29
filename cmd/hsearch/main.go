@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/comov/hsearch/background"
-	"github.com/comov/hsearch/bots"
+	"github.com/comov/hsearch/bot"
 	"github.com/comov/hsearch/configs"
 	"github.com/comov/hsearch/storage"
 
@@ -62,7 +62,7 @@ func main() {
 	// сервисы, а главный поток оставить следить за ними. Таким образом можно
 	// сделать graceful shutdown, reload config да и просто по приколу
 
-	telegramBot := bots.NewTelegramBot(cnf, db)
+	telegramBot := bot.NewTelegramBot(cnf, db)
 	go telegramBot.Start()
 
 	omr := background.StartOfferManager(BaseURL, cnf, db, telegramBot)

@@ -1,4 +1,4 @@
-package bots
+package bot
 
 import (
 	"database/sql"
@@ -13,7 +13,7 @@ func (b *Bot) start(_ *tgbotapi.Message) string {
 }
 
 func (b *Bot) stop(message *tgbotapi.Message) string {
-	err := b.st.StopSearch(message.Chat.ID)
+	err := b.storage.StopSearch(message.Chat.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			first := "Этой группы"
@@ -38,7 +38,7 @@ func (b *Bot) search(m *tgbotapi.Message) string {
 		title = fmt.Sprintf("%s %s", m.Chat.FirstName, m.Chat.LastName)
 	}
 
-	err := b.st.StartSearch(m.Chat.ID, m.Chat.UserName, title, m.Chat.Type)
+	err := b.storage.StartSearch(m.Chat.ID, m.Chat.UserName, title, m.Chat.Type)
 	if err != nil {
 		log.Println("[search.StartSearchForChat] error:", err)
 		return "Прости, говнокод сломался"
@@ -52,7 +52,7 @@ func (b *Bot) feedback(message *tgbotapi.Message) string {
 		return "Нужно оставить комментарий в виде:\n /feedback Я тебя найду...."
 	}
 
-	err := b.st.Feedback(message.Chat.ID, message.Chat.UserName, message.CommandArguments())
+	err := b.storage.Feedback(message.Chat.ID, message.Chat.UserName, message.CommandArguments())
 	if err != nil {
 		log.Println("[feedback.StartSearchForChat] error:", err)
 		return "Прости, даже фидбек может быть сломан"

@@ -34,7 +34,7 @@ type (
 	}
 
 	Bot interface {
-		SendPreviewMessage(offer *structs.Offer, chatId int64) error
+		SendOffer(offer *structs.Offer, chatId int64) error
 	}
 
 	OfferManager struct {
@@ -152,7 +152,7 @@ func (m *OfferManager) matching(chat *structs.Chat) {
 		return
 	}
 
-	err = m.bot.SendPreviewMessage(offer, chat.Id)
+	err = m.bot.SendOffer(offer, chat.Id)
 	if err != nil {
 		log.Printf("[offer_manager] Can't send message for `%s` with an error %s\n", chat.Title, err)
 		return

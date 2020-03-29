@@ -1,8 +1,8 @@
-package bots
+package bot
 
 import (
 	"fmt"
-	"log"
+	"strings"
 
 	"github.com/comov/hsearch/structs"
 )
@@ -18,35 +18,39 @@ const startMessage = `
 /feedback <text> - отставить гневное сообщение автору 😐
 `
 
-const templateMessage = `
-%s
-
-Цена: %s
-Комнат: %s
-Номер: %s
-Ссылка: %s
-`
-
 const stopNotFound = `%s нет в базе. Это значит что я %s не отправлю`
-const noOffers = `Пока нет новых предложений`
 
 func DefaultMessage(offer *structs.Offer) string {
-	return fmt.Sprintf(templateMessage,
-		offer.Topic,
-		offer.FullPrice,
-		offer.Rooms,
-		offer.Phone,
-		offer.Url,
-	)
-}
+	var message strings.Builder
+	message.WriteString(offer.Topic)
+	message.WriteString("\n\n")
 
-func (b *Bot) bookmarksMessages(offers []*structs.Offer, chat int64) {
-	for _, offer := range offers {
-		err := b.SendOffer(offer, chat, nil, "")
-		if err != nil {
-			log.Println("[bookmarksMessages.SendOffer] error:", err)
-		}
+	if offer.FullPrice != "" {
+		message.Grow(len("Цена: ") + len(offer.FullPrice) + len("\n"))
+		message.WriteString("Цена: ")
+		message.WriteString(offer.FullPrice)
+		message.WriteString("\n")
 	}
+
+	if offer.Rooms != "" {
+		message.Grow(len("Комнат: ") + len(offer.Rooms) + len("\n"))
+		message.WriteString("Комнат: ")
+		message.WriteString(offer.Rooms)
+		message.WriteString("\n")
+	}
+
+	if offer.Phone != "" {
+		message.Grow(len("Номер: ") + len(offer.Phone) + len("\n"))
+		message.WriteString("Номер: ")
+		message.WriteString(offer.Phone)
+		message.WriteString("\n")
+	}
+
+	message.Grow(len("Ссылка: ") + len(offer.Url) + len("\n"))
+	message.WriteString("Ссылка: ")
+	message.WriteString(offer.Url)
+	message.WriteString("\n")
+	return message.String()
 }
 
 func WaitPhotoMessage(count int) string {
