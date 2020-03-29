@@ -11,8 +11,8 @@ var (
 	filters = tgbotapi.NewInlineKeyboardButtonData("Фильтры", "filters")
 
 	pricesRow = tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("Цена в KGS", "priceKGS"),
-		tgbotapi.NewInlineKeyboardButtonData("Цена в USD", "priceUSD"),
+		tgbotapi.NewInlineKeyboardButtonData("Цена в KGS", "KGS"),
+		tgbotapi.NewInlineKeyboardButtonData("Цена в USD", "USD"),
 	)
 
 	priceBack = tgbotapi.InlineKeyboardMarkup{
@@ -26,8 +26,8 @@ func MainFiltersHandler(msg *tgbotapi.Message) tgbotapi.Chattable {
 	// todo: load from DB
 	msgText := fmt.Sprintf(mainFiltersText,
 		yesNo(MockStorage[msg.Chat.UserName]["withPhoto"].(bool)),
-		MockStorage[msg.Chat.UserName]["priceKGS"],
-		MockStorage[msg.Chat.UserName]["priceUSD"],
+		price(MockStorage[msg.Chat.UserName]["KGS"].([2]int)),
+		price(MockStorage[msg.Chat.UserName]["USD"].([2]int)),
 	)
 
 	message := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, msgText)
@@ -56,15 +56,16 @@ func getFiltersKeyboard(photo bool) *tgbotapi.InlineKeyboardMarkup {
 	return &keyboard
 }
 
-func FilterPriceKGSHandler(msg *tgbotapi.Message) tgbotapi.Chattable {
-	message := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, textKGS)
-	message.ReplyMarkup = &priceBack
-	message.ParseMode = tgbotapi.ModeMarkdown
-	return message
-}
+func FilterPriceHandler(msg *tgbotapi.Message, currency string) tgbotapi.Chattable {
+	msgText := ""
+	switch currency {
+	case "USD":
+		msgText = textUSD
+	case "KGS":
+		msgText = textKGS
+	}
 
-func FilterPriceUSDHandler(msg *tgbotapi.Message) tgbotapi.Chattable {
-	message := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, textUSD)
+	message := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, msgText)
 	message.ReplyMarkup = &priceBack
 	message.ParseMode = tgbotapi.ModeMarkdown
 	return message

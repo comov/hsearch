@@ -2,12 +2,13 @@ package bot
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/comov/hsearch/structs"
+	"github.com/go-telegram-bot-api/telegram-bot-api"
+	"log"
 	"net/url"
 	"strconv"
-
-	"github.com/comov/hsearch/structs"
-
-	"github.com/go-telegram-bot-api/telegram-bot-api"
+	"time"
 )
 
 // SendGroupPhotos - sends a group of photos to a chat room, but unlike Send,
@@ -76,4 +77,51 @@ func (b *Bot) SendOffer(offer *structs.Offer, chatId int64) error {
 		return err
 	}
 	return b.storage.SaveMessage(send.MessageID, offer.Id, chatId, structs.KindOffer)
+}
+
+func (b *Bot) addWaitCallback(c int64, answer answer) {
+	b.waitMutex.Lock()
+	defer b.waitMutex.Unlock()
+	b.waitAnswers[c] = answer
+}
+
+func (b *Bot) wrongAnswer(message *tgbotapi.Message, a answer) {
+	a.maxErrors -= 1
+	a.deadline = time.Now().Add(time.Second * 20)
+	if a.maxErrors <= 0 {
+		b.clearRetry(message.Chat, message.MessageID)
+		return
+	}
+
+	newMessage := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf(wrongAnswerText, a.maxErrors))
+	m, err := b.bot.Send(newMessage)
+	if err != nil {
+		b.waitAnswers[message.Chat.ID] = a
+		log.Println("[wrongAnswer.Send] error:", err)
+		return
+	}
+
+	a.messages = append(a.messages, message.MessageID, m.MessageID)
+	b.waitAnswers[message.Chat.ID] = a
+}
+
+func (b *Bot) clearRetry(chat *tgbotapi.Chat, lastMsgId int) {
+	a := b.waitAnswers[chat.ID]
+	if lastMsgId != -1 {
+		a.messages = append(a.messages, lastMsgId)
+	}
+	for _, id := range a.messages {
+		deleteMessage := tgbotapi.NewDeleteMessage(chat.ID, id)
+		_, err := b.bot.Send(deleteMessage)
+		if err != nil {
+			log.Println("[clearRetry.Send] error:", err)
+		}
+	}
+
+	b.callbacks["filters"](&tgbotapi.CallbackQuery{Message: &tgbotapi.Message{
+		Chat:      chat,
+		MessageID: a.menuId,
+	}})
+
+	delete(b.waitAnswers, chat.ID)
 }

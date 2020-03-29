@@ -1,10 +1,11 @@
 package bot
 
 import (
-	"log"
-
 	"github.com/comov/hsearch/configs"
 	"github.com/comov/hsearch/structs"
+	"log"
+	"sync"
+	"time"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -29,6 +30,10 @@ type (
 		bot       *tgbotapi.BotAPI
 		storage   Storage
 		callbacks map[string]callback
+
+		// {time.Minutes * 3, b.callbackName(message *tgbotapi.Message)}
+		waitAnswers map[int64]answer
+		waitMutex   sync.Mutex
 	}
 )
 
@@ -40,9 +45,10 @@ func NewTelegramBot(cnf *configs.Config, st Storage) *Bot {
 	}
 
 	bb := &Bot{
-		bot:       bot,
-		storage:   st,
-		callbacks: make(map[string]callback, 0),
+		bot:         bot,
+		storage:     st,
+		callbacks:   make(map[string]callback, 0),
+		waitAnswers: make(map[int64]answer),
 	}
 
 	bb.registerCallbacks()
@@ -92,8 +98,8 @@ func (b *Bot) registerCallbacks() {
 	b.callbacks["filters"] = b.filtersCallback
 	b.callbacks["withPhotoOn"] = b.withPhotoCallback
 	b.callbacks["withPhotoOff"] = b.withPhotoCallback
-	b.callbacks["priceKGS"] = b.priceKGSCallback
-	b.callbacks["priceUSD"] = b.priceUSDCallback
+	b.callbacks["KGS"] = b.priceCallback
+	b.callbacks["USD"] = b.priceCallback
 }
 
 // callbackHandler - handle all callback from user in go routines
@@ -127,5 +133,25 @@ func (b *Bot) messageHandler(update tgbotapi.Update) {
 		if err != nil {
 			log.Println("[Start.Message.Send] error: ", err)
 		}
+		return
+	}
+	b.answerListener(update.Message)
+}
+
+// answerListener - if we need wait answer from some chat, we add waite command
+//  to waitAnswers. This function listen all message and check need wait answer
+//  or not. If need, we call callback and remove from wait map
+func (b *Bot) answerListener(message *tgbotapi.Message) {
+	b.waitMutex.Lock()
+	defer b.waitMutex.Unlock()
+
+	answer, ok := b.waitAnswers[message.Chat.ID]
+	if ok {
+		if answer.deadline.Unix() > time.Now().Unix() {
+			answer.callback(message, answer)
+			return
+		}
+
+		b.clearRetry(message.Chat, -1)
 	}
 }

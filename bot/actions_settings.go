@@ -2,11 +2,29 @@ package bot
 
 import (
 	"log"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/comov/hsearch/bot/settings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+)
+
+// answer - when we ask a question, we expect an answer. This structure stores
+//  the wrong answers for deletion and the menu to which you want to go back.
+type answer struct {
+	deadline  time.Time
+	callback  func(*tgbotapi.Message, answer)
+	currency  string
+	maxErrors int
+	menuId    int
+	messages  []int
+}
+
+const (
+	waitSeconds = 20
+	maxErrors   = 4
 )
 
 //// buttons for configs
@@ -70,30 +88,47 @@ func (b *Bot) withPhotoCallback(query *tgbotapi.CallbackQuery) {
 	}
 }
 
-func (b *Bot) priceKGSCallback(query *tgbotapi.CallbackQuery) {
-	_, err := b.bot.Send(settings.FilterPriceKGSHandler(query.Message))
+func (b *Bot) priceCallback(query *tgbotapi.CallbackQuery) {
+	_, err := b.bot.Send(settings.FilterPriceHandler(query.Message, query.Data))
 	if err != nil {
-		log.Println("[priceKGSCallback.Send] error:", err)
+		log.Println("[priceCallback.Send] error:", err)
+		return
 	}
 
-	// todo: add listener on one minute for receive new messages. If user send
-	//  not valid message, we send "Read example, and send valid price range!".
-	//  If user send 3 not valid message (without price or bad format), we send
-	//  message we send mail settings menu and remove listener.
-	//  If user send success price range, we save in settings and remove
-	//  listener.
+	b.addWaitCallback(query.Message.Chat.ID, answer{
+		deadline:  time.Now().Add(time.Second * waitSeconds),
+		callback:  b.priceWaiterCallback,
+		currency:  query.Data,
+		menuId:    query.Message.MessageID,
+		maxErrors: maxErrors,
+	})
 }
 
-func (b *Bot) priceUSDCallback(query *tgbotapi.CallbackQuery) {
-	_, err := b.bot.Send(settings.FilterPriceUSDHandler(query.Message))
-	if err != nil {
-		log.Println("[priceUSDCallback.Send] error:", err)
+// priceWaiterCallback - process a response from the user
+func (b *Bot) priceWaiterCallback(message *tgbotapi.Message, a answer) {
+	prices := strings.Split(message.Text, "-")
+	if len(prices) < 2 {
+		b.wrongAnswer(message, a)
+		return
 	}
 
-	// todo: add listener on one minute for receive new messages. If user send
-	//  not valid message, we send "Read example, and send valid price range!".
-	//  If user send 3 not valid message (without price or bad format), we send
-	//  message we send mail settings menu and remove listener.
-	//  If user send success price range, we save in settings and remove
-	//  listener.
+	from, err := strconv.Atoi(strings.TrimSpace(prices[0]))
+	if err != nil {
+		b.wrongAnswer(message, a)
+		log.Println("[priceWaiterCallback] error:", err)
+		return
+	}
+
+	to, err := strconv.Atoi(strings.TrimSpace(prices[1]))
+	if err != nil {
+		b.wrongAnswer(message, a)
+		log.Println("[priceWaiterCallback] error:", err)
+		return
+	}
+
+	userSettings := settings.MockStorage[message.Chat.UserName]
+	userSettings[a.currency] = [2]int{from, to}
+	settings.MockStorage[message.Chat.UserName] = userSettings
+
+	b.clearRetry(message.Chat, message.MessageID)
 }

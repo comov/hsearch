@@ -2,7 +2,6 @@ package settings
 
 import (
 	"fmt"
-
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
@@ -20,14 +19,14 @@ var MockStorage = map[string]map[string]interface{}{
 	"aastashov": {
 		"searchEnable": true,
 		"withPhoto":    true,
-		"priceKGS":     "10000 - 22000",
-		"priceUSD":     "250 - 350",
+		"KGS":     [2]int{10000, 22000},
+		"USD":     [2]int{250, 350},
 	},
 	"stanislav_dev": {
 		"searchEnable": true,
 		"withPhoto":    true,
-		"priceKGS":     "10000 - 22000",
-		"priceUSD":     "250 - 350",
+		"KGS":     [2]int{10000, 22000},
+		"USD":     [2]int{250, 350},
 	},
 }
 
@@ -46,8 +45,8 @@ func MainSettingsHandler(msg *tgbotapi.Message) tgbotapi.Chattable {
 	msgText := fmt.Sprintf(mainSettingsText,
 		yesNo(MockStorage[msg.Chat.UserName]["searchEnable"].(bool)),
 		yesNo(MockStorage[msg.Chat.UserName]["withPhoto"].(bool)),
-		MockStorage[msg.Chat.UserName]["priceKGS"],
-		MockStorage[msg.Chat.UserName]["priceUSD"],
+		price(MockStorage[msg.Chat.UserName]["KGS"].([2]int)),
+		price(MockStorage[msg.Chat.UserName]["USD"].([2]int)),
 	)
 
 	if msg.IsCommand() {
