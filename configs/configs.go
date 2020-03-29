@@ -14,6 +14,7 @@ type Config struct {
 	ParserSleepTime   string `env:"PARSER_SLEEP_TIME"`
 	SkipTimeString    string `env:"SKIP_TIME"`
 	FreshOffersString string `env:"FRESH_ORDER"`
+	AdminChatId       int64  `env:"ADMIN_CHAT_ID"`
 
 	ManagerDelay time.Duration
 	SkipTime     time.Duration

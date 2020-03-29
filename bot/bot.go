@@ -31,6 +31,8 @@ type (
 		storage   Storage
 		callbacks map[string]callback
 
+		adminChatId int64
+
 		// {time.Minutes * 3, b.callbackName(message *tgbotapi.Message)}
 		waitAnswers map[int64]answer
 		waitMutex   sync.Mutex
@@ -47,6 +49,7 @@ func NewTelegramBot(cnf *configs.Config, st Storage) *Bot {
 	bb := &Bot{
 		bot:         bot,
 		storage:     st,
+		adminChatId: cnf.AdminChatId,
 		callbacks:   make(map[string]callback, 0),
 		waitAnswers: make(map[int64]answer),
 	}
@@ -124,6 +127,7 @@ func (b *Bot) messageHandler(update tgbotapi.Update) {
 			b.callbacks["settings"](&tgbotapi.CallbackQuery{
 				Message: update.Message,
 			})
+			return
 		default:
 			msg = "Нет среди доступных команд :("
 		}

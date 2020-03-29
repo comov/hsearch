@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
+
+const feedBackWait = time.Minute * 5
 
 func (b *Bot) start(_ *tgbotapi.Message) string {
 	return startMessage
@@ -48,14 +51,33 @@ func (b *Bot) search(m *tgbotapi.Message) string {
 }
 
 func (b *Bot) feedback(message *tgbotapi.Message) string {
-	if message.CommandArguments() == "" {
-		return "Нужно оставить комментарий в виде:\n /feedback Я тебя найду...."
+	b.addWaitCallback(message.Chat.ID, answer{
+		deadline: time.Now().Add(feedBackWait),
+		callback: b.feedbackWaiterCallback,
+	})
+	return feedbackText
+}
+
+func (b *Bot) feedbackWaiterCallback(message *tgbotapi.Message, _ answer) {
+	msgText := "Понял, предам!"
+	err := b.storage.Feedback(message.Chat.ID, message.Chat.UserName, message.Text)
+	if err != nil {
+		log.Println("[feedbackWaiterCallback.Feedback] error:", err)
+		msgText = "Прости, даже фидбек может быть сломан"
 	}
 
-	err := b.storage.Feedback(message.Chat.ID, message.Chat.UserName, message.CommandArguments())
+	_, err = b.bot.Send(tgbotapi.NewMessage(message.Chat.ID, msgText))
 	if err != nil {
-		log.Println("[feedback.StartSearchForChat] error:", err)
-		return "Прости, даже фидбек может быть сломан"
+		log.Println("[feedbackWaiterCallback.Send] error:", err)
 	}
-	return "Понял, предам!"
+
+	if b.adminChatId != 0 {
+		_, err = b.bot.Send(tgbotapi.NewMessage(
+			b.adminChatId,
+			getFeedbackAdminText(message.Chat, message.Text),
+		))
+		if err != nil {
+			log.Println("[feedbackWaiterCallback.Send2] error:", err)
+		}
+	}
 }

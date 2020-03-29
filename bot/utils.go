@@ -118,10 +118,12 @@ func (b *Bot) clearRetry(chat *tgbotapi.Chat, lastMsgId int) {
 		}
 	}
 
-	b.callbacks["filters"](&tgbotapi.CallbackQuery{Message: &tgbotapi.Message{
-		Chat:      chat,
-		MessageID: a.menuId,
-	}})
+	if a.menuId != 0 {
+		b.callbacks["filters"](&tgbotapi.CallbackQuery{Message: &tgbotapi.Message{
+			Chat:      chat,
+			MessageID: a.menuId,
+		}})
+	}
 
 	delete(b.waitAnswers, chat.ID)
 }

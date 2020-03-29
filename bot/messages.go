@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/comov/hsearch/structs"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 const startMessage = `
@@ -18,6 +20,7 @@ const startMessage = `
 /feedback <text> - отставить гневное сообщение автору 😐
 `
 
+const feedbackText = `Бот будет ждать от тебя сообщения примерно минут 5, после чего отправленный текст не будет считать фидбэком`
 const wrongAnswerText = `То ли я тупой, то ли лыжи. Посмотри пример и попробуй еще разок. Осталось попытор: %d`
 const stopNotFound = `%s нет в базе. Это значит что я %s не отправлю`
 
@@ -70,4 +73,20 @@ func WaitPhotoMessage(count int) string {
 	}
 
 	return "Ща отправлю пару фоток. Это долго, жди..."
+}
+
+func getFeedbackAdminText(chat *tgbotapi.Chat, text string) string {
+	msg := ""
+	if chat.IsPrivate() {
+		msg += fmt.Sprintf("Пользователь: %s %s\nС ником: %s\n\n",
+			chat.FirstName,
+			chat.LastName,
+			chat.UserName,
+		)
+	} else {
+		msg += fmt.Sprintf("В группе: %s\n\n", chat.Title)
+	}
+
+	msg += fmt.Sprintf("Оставили feedback:\n%s", text)
+	return msg
 }
