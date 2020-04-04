@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -28,7 +29,10 @@ func ParseNewOffer(href string, exId uint64, doc *goquery.Document) *structs.Off
 		Price:      price,
 		Currency:   currency,
 		Phone:      parsePhone(doc),
-		Rooms:      parseRoomNumber(doc),
+		Rooms:      spanContains(doc, "Количество комнат"),
+		Area:       spanContains(doc, "Площадь (кв.м.)"),
+		City:       spanContains(doc, "Город"),
+		RoomType:   spanContains(doc, "Тип помещения"),
 		Body:       parseBody(doc),
 		Images:     len(images),
 		ImagesList: images,
@@ -65,17 +69,20 @@ func parsePrice(doc *goquery.Document) (string, int, string) {
 
 // parsePhone - find phone number from badge
 func parsePhone(doc *goquery.Document) string {
-	return doc.Find(".custom-field.md-phone > span.field-value").Text()
+	phone := doc.Find(".custom-field.md-phone > span.field-value").Text()
+	if len(phone) >= 9 {
+		phone = fmt.Sprintf("+996%s", phone[len(phone)-9:])
+	}
+	return phone
 }
 
-// parseRoomNumber - find number of rooms from badge
-func parseRoomNumber(doc *goquery.Document) string {
-	roomNumberNodes := doc.Find("span:contains('Количество комнат')").Parent().Children().Nodes
-	rooms := ""
-	if len(roomNumberNodes) > 1 {
-		rooms = goquery.NewDocumentFromNode(roomNumberNodes[1]).Text()
+// spanContains - find text value by contain selector
+func spanContains(doc *goquery.Document, text string) string {
+	nodes := doc.Find("span:contains('" + text + "')").Parent().Children().Nodes
+	if len(nodes) > 1 {
+		return goquery.NewDocumentFromNode(nodes[1]).Text()
 	}
-	return rooms
+	return ""
 }
 
 // parseBody - find offer body in page

@@ -5,6 +5,7 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/getsentry/sentry-go"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 var Release string

@@ -2,6 +2,9 @@ package settings
 
 import (
 	"fmt"
+
+	"github.com/comov/hsearch/structs"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
@@ -40,13 +43,12 @@ var (
 	)
 )
 
-func MainSettingsHandler(msg *tgbotapi.Message) tgbotapi.Chattable {
-	// todo: load from DB
+func MainSettingsHandler(msg *tgbotapi.Message, chat *structs.Chat) tgbotapi.Chattable {
 	msgText := fmt.Sprintf(mainSettingsText,
-		yesNo(MockStorage[msg.Chat.UserName]["searchEnable"].(bool)),
-		yesNo(MockStorage[msg.Chat.UserName]["withPhoto"].(bool)),
-		price(MockStorage[msg.Chat.UserName]["KGS"].([2]int)),
-		price(MockStorage[msg.Chat.UserName]["USD"].([2]int)),
+		yesNo(chat.Enable),
+		yesNo(chat.Photo),
+		price(chat.KGS),
+		price(chat.USD),
 	)
 
 	if msg.IsCommand() {

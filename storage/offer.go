@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/comov/hsearch/structs"
 )
 
-// WriteOffer - записывает Offer в базу вместе с картинками и вазвращает Id в
-// структуру
+// WriteOffer - records Offer in the database with the pictures and returns Id
+//  to the structure.
 func (c *Connector) WriteOffer(offer *structs.Offer) error {
 	_, err := c.DB.Exec(`INSERT INTO offer (
 		id,
@@ -22,9 +23,12 @@ func (c *Connector) WriteOffer(offer *structs.Offer) error {
 		currency,
 		phone,
 		room_numbers,
-    	body,
+		area,
+		city,
+		room_type,
+		body,
 		images,
-		created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+		created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
 		offer.Id,
 		offer.Url,
 		offer.Topic,
@@ -33,6 +37,9 @@ func (c *Connector) WriteOffer(offer *structs.Offer) error {
 		offer.Currency,
 		offer.Phone,
 		offer.Rooms,
+		offer.Area,
+		offer.City,
+		offer.RoomType,
 		offer.Body,
 		offer.Images,
 		time.Now().Unix(),
@@ -43,7 +50,7 @@ func (c *Connector) WriteOffer(offer *structs.Offer) error {
 	return c.writeImages(strconv.Itoa(int(offer.Id)), offer.ImagesList)
 }
 
-// WriteOffers - пишет пачку из offers вместе с картинками в бд
+// WriteOffers - writes bulk from offers along with pictures to the fd.
 func (c *Connector) WriteOffers(offers []*structs.Offer) (int, error) {
 	newOffersCount := 0
 	// TODO: как видно, сейчас это сделано через простой цикл, но лучше
@@ -87,7 +94,8 @@ func (c *Connector) writeImages(offerId string, images []string) error {
 	return nil
 }
 
-// CleanFromExistOrders - очищает map от offers которые уже есть в базе
+// CleanFromExistOrders - clears the map of offers that are already in
+//  the database
 func (c *Connector) CleanFromExistOrders(offers map[uint64]string) error {
 	params := make([]interface{}, 0)
 
@@ -145,7 +153,7 @@ func (c *Connector) Dislike(msgId int, chatId int64) ([]int, error) {
 		return msgIds, err
 	}
 
-	_, err = c.DB.Exec(
+	_, _ = c.DB.Exec(
 		`INSERT INTO answer (chat, offer_id, dislike, created)
 				VALUES (?, ?, ?, ?);`,
 		chatId,
@@ -154,6 +162,7 @@ func (c *Connector) Dislike(msgId int, chatId int64) ([]int, error) {
 		time.Now().Unix(),
 	)
 
+	// load all message with offerId and delete
 	rows, err := c.DB.Query(
 		`SELECT message_id FROM tg_messages WHERE offer_id = ? AND chat = ?;`,
 		offerId,
@@ -211,32 +220,48 @@ func (c *Connector) Skip(msgId int, chatId int64) error {
 	return err
 }
 
-func (c *Connector) ReadNextOffer(chatId int64) (*structs.Offer, error) {
+func (c *Connector) ReadNextOffer(chat *structs.Chat) (*structs.Offer, error) {
 	offer := new(structs.Offer)
 	now := time.Now()
 
-	err := c.DB.QueryRow(`
+	var query strings.Builder
+	query.WriteString(`
 	SELECT DISTINCT
-	   id,
-       url,
-       topic,
-       full_price,
-       price,
-       currency,
-       phone,
-       room_numbers,
-	   images,
-	   body
+		of.id,
+		of.url,
+		of.topic,
+		of.full_price,
+		of.price,
+		of.currency,
+		of.phone,
+		of.room_numbers,
+		of.area,
+		of.city,
+		of.room_type,
+		of.images,
+		of.body
 	FROM offer of
 	LEFT JOIN answer u on (of.id = u.offer_id AND u.chat = ?)
 	LEFT JOIN tg_messages sm on (of.id = sm.offer_id AND sm.chat = ?)
 	WHERE of.created >= ?
-	  AND (u.dislike = 0 OR u.dislike IS NULL)
-	  AND sm.created IS NULL
-	ORDER BY of.created;
-	`,
-		chatId,
-		chatId,
+		AND (u.dislike = 0 OR u.dislike IS NULL)
+		AND sm.created IS NULL
+	`)
+
+	if chat.Photo {
+		query.WriteString(" AND of.images != 0")
+	}
+
+	if chat.KGS.String() != "0:0" || chat.USD.String() != "0:0" {
+		query.WriteString(priceFilter(chat.USD, chat.KGS))
+	}
+
+	query.WriteString(" 	ORDER BY of.created;")
+
+	err := c.DB.QueryRow(
+		query.String(),
+		chat.Id,
+		chat.Id,
 		now.Add(-c.relevanceTime).Unix(),
 	).Scan(
 		&offer.Id,
@@ -247,18 +272,37 @@ func (c *Connector) ReadNextOffer(chatId int64) (*structs.Offer, error) {
 		&offer.Currency,
 		&offer.Phone,
 		&offer.Rooms,
+		&offer.Area,
+		&offer.City,
+		&offer.RoomType,
 		&offer.Images,
 		&offer.Body,
 	)
 
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, err
+	if err != nil && err == sql.ErrNoRows {
+		return nil, nil
 	}
 
-	return offer, nil
+	return offer, err
+}
+
+func priceFilter(usd, kgs structs.Price) string {
+	var f strings.Builder
+	f.WriteString(" AND(")
+	if usd.String() == "0:0" {
+		f.WriteString(" of.currency = 'usd'")
+	} else {
+		f.WriteString(fmt.Sprintf(" (of.price between %d and %d and of.currency = 'usd')", usd[0], usd[1]))
+	}
+
+	if kgs.String() == "0:0" {
+		f.WriteString(" or of.currency = 'сом'")
+	} else {
+		f.WriteString(fmt.Sprintf(" or (of.price between %d and %d and of.currency = 'сом')", kgs[0], kgs[1]))
+	}
+
+	f.WriteString(" )")
+	return f.String()
 }
 
 func (c *Connector) ReadOfferDescription(msgId int, chatId int64) (uint64, string, error) {

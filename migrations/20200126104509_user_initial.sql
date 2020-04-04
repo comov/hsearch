@@ -3,7 +3,7 @@
 create table user
 (
     username varchar(100) default '',
-    chat     integer      not null,
+    chat     integer not null,
     enable   integer      default 0
 );
 

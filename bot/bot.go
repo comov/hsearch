@@ -1,19 +1,18 @@
 package bot
 
 import (
-	"github.com/comov/hsearch/configs"
-	"github.com/comov/hsearch/structs"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/comov/hsearch/configs"
+	"github.com/comov/hsearch/structs"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 type (
 	Storage interface {
-		StartSearch(id int64, username, title, chatType string) error
-		StopSearch(id int64) error
 		Dislike(msgId int, chatId int64) ([]int, error)
 		Skip(msgId int, chatId int64) error
 		Feedback(chat int64, username, body string) error
@@ -21,7 +20,10 @@ type (
 		SaveMessage(msgId int, offerId uint64, chat int64, kind string) error
 		ReadOfferDescription(msgId int, chatId int64) (uint64, string, error)
 		ReadOfferImages(msgId int, chatId int64) (uint64, []string, error)
-		ReadNextOffer(chatId int64) (*structs.Offer, error)
+
+		ReadChat(id int64) (*structs.Chat, error)
+		CreateChat(id int64, username, title, cType string) error
+		UpdateSettings(chat *structs.Chat) error
 	}
 
 	callback func(query *tgbotapi.CallbackQuery)
@@ -58,6 +60,10 @@ func NewTelegramBot(cnf *configs.Config, st Storage) *Bot {
 
 	bb.registerCallbacks()
 	return bb
+}
+
+func (b *Bot) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
+	return b.bot.Send(c)
 }
 
 func (b *Bot) Start() {
@@ -117,19 +123,17 @@ func (b *Bot) messageHandler(update tgbotapi.Update) {
 	if update.Message.IsCommand() {
 		msg := ""
 		switch update.Message.Command() {
-		case "start", "help":
+		case "start":
 			msg = b.start(update.Message)
-		case "stop":
-			msg = b.stop(update.Message)
-		case "search":
-			msg = b.search(update.Message)
-		case "feedback":
-			msg = b.feedback(update.Message)
+		case "help":
+			msg = b.help(update.Message)
 		case "settings":
 			b.callbacks["settings"](&tgbotapi.CallbackQuery{
 				Message: update.Message,
 			})
 			return
+		case "feedback":
+			msg = b.feedback(update.Message)
 		default:
 			msg = "Нет среди доступных команд :("
 		}

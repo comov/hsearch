@@ -3,6 +3,8 @@ package settings
 import (
 	"fmt"
 
+	"github.com/comov/hsearch/structs"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
@@ -10,22 +12,21 @@ var (
 	search = tgbotapi.NewInlineKeyboardButtonData("Поиск", "search")
 )
 
-func MainSearchHandler(msg *tgbotapi.Message) tgbotapi.Chattable {
-	// todo: load from DB
+func MainSearchHandler(msg *tgbotapi.Message, chat *structs.Chat) tgbotapi.Chattable {
 	msgText := getSearchText(
-		MockStorage[msg.Chat.UserName]["searchEnable"].(bool),
+		chat.Enable,
 	)
 
 	message := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, msgText)
 	message.ReplyMarkup = getSearchKeyboard(
-		MockStorage[msg.Chat.UserName]["searchEnable"].(bool),
+		chat.Enable,
 	)
 	message.ParseMode = tgbotapi.ModeMarkdown
 	return message
 }
 
-func getSearchText(search bool) string {
-	return fmt.Sprintf(mainSearchText, yesNo(search))
+func getSearchText(v bool) string {
+	return fmt.Sprintf(mainSearchText, yesNo(v))
 }
 
 func getSearchKeyboard(search bool) *tgbotapi.InlineKeyboardMarkup {

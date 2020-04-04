@@ -3,6 +3,8 @@ package settings
 import (
 	"fmt"
 
+	"github.com/comov/hsearch/structs"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
@@ -22,17 +24,16 @@ var (
 	}
 )
 
-func MainFiltersHandler(msg *tgbotapi.Message) tgbotapi.Chattable {
-	// todo: load from DB
+func MainFiltersHandler(msg *tgbotapi.Message, chat *structs.Chat) tgbotapi.Chattable {
 	msgText := fmt.Sprintf(mainFiltersText,
-		yesNo(MockStorage[msg.Chat.UserName]["withPhoto"].(bool)),
-		price(MockStorage[msg.Chat.UserName]["KGS"].([2]int)),
-		price(MockStorage[msg.Chat.UserName]["USD"].([2]int)),
+		yesNo(chat.Photo),
+		price(chat.KGS),
+		price(chat.USD),
 	)
 
 	message := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, msgText)
 	message.ReplyMarkup = getFiltersKeyboard(
-		MockStorage[msg.Chat.UserName]["withPhoto"].(bool),
+		chat.Photo,
 	)
 	message.ParseMode = tgbotapi.ModeMarkdown
 	return message

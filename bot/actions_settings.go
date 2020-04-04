@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/comov/hsearch/bot/settings"
+	"github.com/comov/hsearch/structs"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -30,7 +31,17 @@ const (
 //// buttons for configs
 // settingsCallback - show all settings for user
 func (b *Bot) settingsCallback(query *tgbotapi.CallbackQuery) {
-	_, err := b.bot.Send(settings.MainSettingsHandler(query.Message))
+	chat, err := b.storage.ReadChat(query.Message.Chat.ID)
+	if err != nil {
+		log.Println("[settingsCallback.ReadChat] error:", err)
+		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
+		if err != nil {
+			log.Println("[settingsCallback.Send.error] error:", err)
+		}
+		return
+	}
+
+	_, err = b.bot.Send(settings.MainSettingsHandler(query.Message, chat))
 	if err != nil {
 		log.Println("[settingsCallback.Send] error:", err)
 	}
@@ -49,16 +60,34 @@ func (b *Bot) backCallback(query *tgbotapi.CallbackQuery) {
 
 // searchCallback - change search parameters for bot
 func (b *Bot) searchCallback(query *tgbotapi.CallbackQuery) {
-	userSettings := settings.MockStorage[query.Message.Chat.UserName]
+	chat, err := b.storage.ReadChat(query.Message.Chat.ID)
+	if err != nil {
+		log.Println("[settingsCallback.ReadChat] error:", err)
+		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
+		if err != nil {
+			log.Println("[settingsCallback.Send.error] error:", err)
+		}
+		return
+	}
+
 	switch query.Data {
 	case "searchOn":
-		userSettings["searchEnable"] = true
+		chat.Enable = true
 	case "searchOff":
-		userSettings["searchEnable"] = false
+		chat.Enable = false
 	}
-	settings.MockStorage[query.Message.Chat.UserName] = userSettings
 
-	_, err := b.bot.Send(settings.MainSearchHandler(query.Message))
+	err = b.storage.UpdateSettings(chat)
+	if err != nil {
+		log.Println("[settingsCallback.ReadChat] error:", err)
+		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
+		if err != nil {
+			log.Println("[settingsCallback.Send.error] error:", err)
+		}
+		return
+	}
+
+	_, err = b.bot.Send(settings.MainSearchHandler(query.Message, chat))
 	if err != nil {
 		log.Println("[searchCallback.Send] error:", err)
 	}
@@ -66,23 +95,51 @@ func (b *Bot) searchCallback(query *tgbotapi.CallbackQuery) {
 
 //// buttons for filters
 func (b *Bot) filtersCallback(query *tgbotapi.CallbackQuery) {
-	_, err := b.bot.Send(settings.MainFiltersHandler(query.Message))
+	chat, err := b.storage.ReadChat(query.Message.Chat.ID)
+	if err != nil {
+		log.Println("[settingsCallback.ReadChat] error:", err)
+		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
+		if err != nil {
+			log.Println("[settingsCallback.Send.error] error:", err)
+		}
+		return
+	}
+
+	_, err = b.bot.Send(settings.MainFiltersHandler(query.Message, chat))
 	if err != nil {
 		log.Println("[filtersCallback.Send] error:", err)
 	}
 }
 
 func (b *Bot) withPhotoCallback(query *tgbotapi.CallbackQuery) {
-	userSettings := settings.MockStorage[query.Message.Chat.UserName]
+	chat, err := b.storage.ReadChat(query.Message.Chat.ID)
+	if err != nil {
+		log.Println("[settingsCallback.ReadChat] error:", err)
+		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
+		if err != nil {
+			log.Println("[settingsCallback.Send.error] error:", err)
+		}
+		return
+	}
+
 	switch query.Data {
 	case "withPhotoOn":
-		userSettings["withPhoto"] = true
+		chat.Photo = true
 	case "withPhotoOff":
-		userSettings["withPhoto"] = false
+		chat.Photo = false
 	}
-	settings.MockStorage[query.Message.Chat.UserName] = userSettings
 
-	_, err := b.bot.Send(settings.MainFiltersHandler(query.Message))
+	err = b.storage.UpdateSettings(chat)
+	if err != nil {
+		log.Println("[settingsCallback.ReadChat] error:", err)
+		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
+		if err != nil {
+			log.Println("[settingsCallback.Send.error] error:", err)
+		}
+		return
+	}
+
+	_, err = b.bot.Send(settings.MainFiltersHandler(query.Message, chat))
 	if err != nil {
 		log.Println("[withPhotoCallback.Send] error:", err)
 	}
@@ -126,9 +183,32 @@ func (b *Bot) priceWaiterCallback(message *tgbotapi.Message, a answer) {
 		return
 	}
 
-	userSettings := settings.MockStorage[message.Chat.UserName]
-	userSettings[a.currency] = [2]int{from, to}
-	settings.MockStorage[message.Chat.UserName] = userSettings
+	chat, err := b.storage.ReadChat(message.Chat.ID)
+	if err != nil {
+		log.Println("[settingsCallback.ReadChat] error:", err)
+		_, err = b.bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Прости, говнокод сломался"))
+		if err != nil {
+			log.Println("[settingsCallback.Send.error] error:", err)
+		}
+		return
+	}
+
+	switch a.currency {
+	case "USD":
+		chat.USD = structs.Price{from, to}
+	case "KGS":
+		chat.KGS = structs.Price{from, to}
+	}
+
+	err = b.storage.UpdateSettings(chat)
+	if err != nil {
+		log.Println("[settingsCallback.ReadChat] error:", err)
+		_, err = b.bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Прости, говнокод сломался"))
+		if err != nil {
+			log.Println("[settingsCallback.Send.error] error:", err)
+		}
+		return
+	}
 
 	b.clearRetry(message.Chat, message.MessageID)
 }

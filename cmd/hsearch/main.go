@@ -11,8 +11,6 @@ import (
 	"github.com/comov/hsearch/bot"
 	"github.com/comov/hsearch/configs"
 	"github.com/comov/hsearch/storage"
-
-	_ "github.com/joho/godotenv/autoload"
 )
 
 const (

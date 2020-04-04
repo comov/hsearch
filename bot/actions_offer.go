@@ -38,24 +38,12 @@ func (b *Bot) skip(query *tgbotapi.CallbackQuery) {
 		return
 	}
 
-	offer, err := b.storage.ReadNextOffer(query.Message.Chat.ID)
-	if err != nil {
-		log.Println("[skip.ReadNextOffer] error:", err)
-		return
-	}
-
 	_, err = b.bot.AnswerCallbackQuery(tgbotapi.NewCallback(
 		query.ID, "Покажу позже",
 	))
 
 	if err != nil {
 		log.Println("[skip.AnswerCallbackQuery] error:", err)
-	}
-
-	err = b.SendOffer(offer, query.Message.Chat.ID)
-	if err != nil {
-		log.Println("[skip.SendOffer] error:", err)
-		return
 	}
 }
 

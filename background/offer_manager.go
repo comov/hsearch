@@ -22,8 +22,8 @@ import (
 type (
 	Storage interface {
 		WriteOffers(offer []*structs.Offer) (int, error)
-		ReadChatsForMatching() ([]*structs.Chat, error)
-		ReadNextOffer(chatId int64) (*structs.Offer, error)
+		ReadChatsForMatching(enable int) ([]*structs.Chat, error)
+		ReadNextOffer(chat *structs.Chat) (*structs.Offer, error)
 		CleanFromExistOrders(offers map[uint64]string) error
 	}
 
@@ -113,7 +113,7 @@ func (m *OfferManager) parser() {
 
 // broker - вытягивает вск чаты из бд и начинает для них рассылку
 func (m *OfferManager) broker() {
-	chats, err := m.st.ReadChatsForMatching()
+	chats, err := m.st.ReadChatsForMatching(1)
 	if err != nil {
 		log.Println("[offer_manager.ReadChatForOrder] error:", err)
 		return
@@ -125,9 +125,6 @@ func (m *OfferManager) broker() {
 	}
 
 	for _, chat := range chats {
-		// TODO: каждый раз создавать горутину на чат, это жирно. Нужно
-		//  сделать воркеров которые будут создаваться при старте, затем
-		//  передавать им чаты и они будут заниматься matching
 		go m.matching(chat)
 	}
 }
@@ -135,7 +132,7 @@ func (m *OfferManager) broker() {
 func (m *OfferManager) matching(chat *structs.Chat) {
 	log.Printf("[offer_manager] Start matching for %s", chat.Title)
 
-	offer, err := m.st.ReadNextOffer(chat.Id)
+	offer, err := m.st.ReadNextOffer(chat)
 	if err != nil {
 		log.Printf("[offer_manager] Can't read offer for %s with an error %s\n", chat.Title, err)
 		return

@@ -1,6 +1,10 @@
 package storage
 
-import "database/sql"
+import (
+	"database/sql"
+
+	"github.com/comov/hsearch/structs"
+)
 
 // StopSearch - disable receive message about new offers.
 func (c *Connector) StopSearch(id int64) error {
@@ -27,20 +31,30 @@ func (c *Connector) StartSearch(id int64, username, title, cType string) error {
 	chat, err := c.ReadChat(id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			_, err := c.DB.Exec(
-				`INSERT INTO chat (id, username, title, enable, c_type)
-						VALUES (?, ?, ?, ?, ?);`,
-				id,
-				username,
-				title,
-				true,
-				cType,
-			)
-			return err
+			return c.CreateChat(id, username, title, cType)
 		}
 		return err
 	}
 
 	_, err = c.DB.Exec("UPDATE chat SET enable = 1 WHERE id = ?;", chat.Id)
+	return err
+}
+
+// UpdateSettings - updates all chat settings
+func (c *Connector) UpdateSettings(chat *structs.Chat) error {
+	_, err := c.DB.Exec(`
+	UPDATE chat SET
+		enable = ?,
+		photo = ?,
+		kgs = ?,
+		usd = ?
+	WHERE id = ?
+	`,
+		chat.Enable,
+		chat.Photo,
+		chat.KGS,
+		chat.USD,
+		chat.Id,
+	)
 	return err
 }

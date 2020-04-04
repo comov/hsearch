@@ -2,10 +2,10 @@
 -- +goose StatementBegin
 create table feedback
 (
-    created  integer       not null,
-    chat     integer       not null,
-    username varchar(100)  default '',
-    body     text          default ''
+    created  integer not null,
+    chat     integer not null,
+    username varchar(100) default '',
+    body     text         default ''
 );
 
 -- +goose StatementEnd

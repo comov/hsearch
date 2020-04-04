@@ -9,20 +9,18 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-const startMessage = `
-Это бот для поиска квартир. Основное его приемущество это фильтрация по просмотренным квартирам. Это не коммерческий проект, код в открытом доступе. Если есть идеи, оставляй фидбек :)
+const helpMessage = `
+Это бот для поиска квартир. Основное его преимущество это фильтрация по просмотренным квартирам. Это не коммерческий проект, код в открытом доступе. Если есть идеи, оставляй фидбек :)
 
 Доступные команды:
-/start - запуск бота
+/start - зарегистрирует тебя для поиска квартиры
 /help - справка по командам
-/stop - исключит Вас из списка пользователей для рассылки и остановит бота
-/search - включит поиск квартир, бот будет отправлять Вам новые квартиры как найдет
-/feedback <text> - отставить гневное сообщение автору 😐
+/settings - настройки и фильтры бота
+/feedback - отставить гневное сообщение автору 😐
 `
 
 const feedbackText = `Бот будет ждать от тебя сообщения примерно минут 5, после чего отправленный текст не будет считать фидбэком`
 const wrongAnswerText = `То ли я тупой, то ли лыжи. Посмотри пример и попробуй еще разок. Осталось попытор: %d`
-const stopNotFound = `%s нет в базе. Это значит что я %s не отправлю`
 
 func DefaultMessage(offer *structs.Offer) string {
 	var message strings.Builder
@@ -36,10 +34,31 @@ func DefaultMessage(offer *structs.Offer) string {
 		message.WriteString("\n")
 	}
 
+	if offer.RoomType != "" {
+		message.Grow(len("Тип помещения: ") + len(offer.RoomType) + len("\n"))
+		message.WriteString("Тип помещения: ")
+		message.WriteString(offer.RoomType)
+		message.WriteString("\n")
+	}
+
 	if offer.Rooms != "" {
 		message.Grow(len("Комнат: ") + len(offer.Rooms) + len("\n"))
 		message.WriteString("Комнат: ")
 		message.WriteString(offer.Rooms)
+		message.WriteString("\n")
+	}
+
+	if offer.Area != "" {
+		message.Grow(len("Площадь (кв.м.): ") + len(offer.Area) + len("\n"))
+		message.WriteString("Площадь (кв.м.): ")
+		message.WriteString(offer.Area)
+		message.WriteString("\n")
+	}
+
+	if offer.City != "" {
+		message.Grow(len("Город: ") + len(offer.City) + len("\n"))
+		message.WriteString("Город: ")
+		message.WriteString(offer.City)
 		message.WriteString("\n")
 	}
 
@@ -87,6 +106,6 @@ func getFeedbackAdminText(chat *tgbotapi.Chat, text string) string {
 		msg += fmt.Sprintf("В группе: %s\n\n", chat.Title)
 	}
 
-	msg += fmt.Sprintf("Оставили feedback:\n%s", text)
+	msg += fmt.Sprintf("Оставил feedback:\n%s", text)
 	return msg
 }

@@ -11,43 +11,31 @@ import (
 
 const feedBackWait = time.Minute * 5
 
-func (b *Bot) start(_ *tgbotapi.Message) string {
-	return startMessage
+func (b *Bot) help(_ *tgbotapi.Message) string {
+	return helpMessage
 }
 
-func (b *Bot) stop(message *tgbotapi.Message) string {
-	err := b.storage.StopSearch(message.Chat.ID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			first := "Этой группы"
-			second := "и так ничего сюда"
-			if message.Chat.IsPrivate() {
-				first = "Тебя"
-				second = "тебе и так ничего"
-			}
-			return fmt.Sprintf(stopNotFound, first, second)
-		}
-
-		log.Println("[stop.StopSearch] error:", err)
-		return "Прости, говнокод сломался"
+func (b *Bot) start(m *tgbotapi.Message) string {
+	_, err := b.storage.ReadChat(m.Chat.ID)
+	if err == nil {
+		return "Окей, ты уже нажал /start, можешь больше не нажимать"
 	}
 
-	return "Ok! Я больше не буду отправлять тебе квартиры"
-}
+	if err != sql.ErrNoRows {
+		log.Println("[start.ReadChat] error:", err)
+		return "ААААААА! Чота сламалась. Со мной такое впервые. Атвичаю!"
+	}
 
-func (b *Bot) search(m *tgbotapi.Message) string {
 	title := m.Chat.Title
 	if m.Chat.IsPrivate() {
 		title = fmt.Sprintf("%s %s", m.Chat.FirstName, m.Chat.LastName)
 	}
-
-	err := b.storage.StartSearch(m.Chat.ID, m.Chat.UserName, title, m.Chat.Type)
+	err = b.storage.CreateChat(m.Chat.ID, m.Chat.UserName, title, m.Chat.Type)
 	if err != nil {
-		log.Println("[search.StartSearchForChat] error:", err)
-		return "Прости, говнокод сломался"
+		log.Println("[start.StopSearch] error:", err)
+		return "ААААААА! Чота сламалась. Со мной такое впервые. Атвичаю!"
 	}
-
-	return "Теперь я буду искать для тебя квартиры"
+	return "Отлично! Теперь я буду искать для тебя квартиры"
 }
 
 func (b *Bot) feedback(message *tgbotapi.Message) string {
