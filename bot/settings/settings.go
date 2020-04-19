@@ -17,22 +17,6 @@ var BackFlowMap = map[string]string{
 	"Укажите суммы в":  "filters",
 }
 
-// todo: remove mocks
-var MockStorage = map[string]map[string]interface{}{
-	"aastashov": {
-		"searchEnable": true,
-		"withPhoto":    true,
-		"KGS":     [2]int{10000, 22000},
-		"USD":     [2]int{250, 350},
-	},
-	"stanislav_dev": {
-		"searchEnable": true,
-		"withPhoto":    true,
-		"KGS":     [2]int{10000, 22000},
-		"USD":     [2]int{250, 350},
-	},
-}
-
 // buttons for configs
 var (
 	back    = tgbotapi.NewInlineKeyboardButtonData("<< назад", "back")
@@ -46,6 +30,8 @@ var (
 func MainSettingsHandler(msg *tgbotapi.Message, chat *structs.Chat) tgbotapi.Chattable {
 	msgText := fmt.Sprintf(mainSettingsText,
 		yesNo(chat.Enable),
+		yesNo(chat.Diesel),
+		yesNo(chat.Lalafo),
 		yesNo(chat.Photo),
 		price(chat.KGS),
 		price(chat.USD),

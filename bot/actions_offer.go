@@ -27,6 +27,10 @@ func getKeyboard(offer *structs.Offer) tgbotapi.InlineKeyboardMarkup {
 		row2 = append(row2, photoButton)
 	}
 
+	if len(row2) == 0 {
+		return tgbotapi.NewInlineKeyboardMarkup(row1)
+	}
+
 	return tgbotapi.NewInlineKeyboardMarkup(row1, row2)
 }
 

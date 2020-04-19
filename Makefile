@@ -8,13 +8,10 @@ migrate:
 	go run cmd/hsearch/*.go migrate
 
 run:
-	go run *.go
+	go run cmd/hsearch/*.go
 
 dockerbuild:
 	docker build -t comov/hsearch:latest .
-
-dockertest:
-	docker build -f DockerfileTest .
 
 dockerrun: dockerbuild
 	docker run -d hsearch

@@ -14,9 +14,9 @@ const mainSettingsText = `*Все настройки твоего бота*
 `+ mainFiltersText
 
 const mainSearchText = `*Настройки поиска*
-Искать для тебя квартиры: %s`
-// Искать на elcat.diesel.kg: %t
-// Искать на lalafo.kg: %t
+Искать для тебя квартиры: %s
+Искать на elcat.diesel.kg: %s
+Искать на lalafo.kg: %s`
 
 const mainFiltersText = `*Фильтры поиска*
 Только с фото: %s

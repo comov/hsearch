@@ -15,7 +15,6 @@ var Release string
 type Config struct {
 	Release         string
 	SentryDSN       string `env:"SENTRY_DSN"`
-	ParseMaxPage    int    `env:"PARSER_MAX_PAGE"`
 	ParserFrequency string `env:"PARSER_FREQUENCY"`
 	OrderSkipDelay  string `env:"ORDER_SKIP_DELAY"`
 	OrderRelevance  string `env:"ORDER_RELEVANCE"`
@@ -31,7 +30,6 @@ type Config struct {
 func GetConf() (*Config, error) {
 	cfg := &Config{
 		Release:         Release,
-		ParseMaxPage:    2,
 		ParserFrequency: "1m",
 		OrderSkipDelay:  "3m",
 		OrderRelevance:  "2m",

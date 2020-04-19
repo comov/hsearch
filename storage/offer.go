@@ -16,6 +16,8 @@ import (
 func (c *Connector) WriteOffer(offer *structs.Offer) error {
 	_, err := c.DB.Exec(`INSERT INTO offer (
 		id,
+		created,
+		site,
 		url,
 		topic,
 		full_price,
@@ -24,12 +26,15 @@ func (c *Connector) WriteOffer(offer *structs.Offer) error {
 		phone,
 		room_numbers,
 		area,
+		floor,
+		district,
 		city,
 		room_type,
 		body,
-		images,
-		created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+		images) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
 		offer.Id,
+		time.Now().Unix(),
+		offer.Site,
 		offer.Url,
 		offer.Topic,
 		offer.FullPrice,
@@ -38,11 +43,12 @@ func (c *Connector) WriteOffer(offer *structs.Offer) error {
 		offer.Phone,
 		offer.Rooms,
 		offer.Area,
+		offer.Floor,
+		offer.District,
 		offer.City,
 		offer.RoomType,
 		offer.Body,
 		offer.Images,
-		time.Now().Unix(),
 	)
 	if err != nil && !regexContain.MatchString(err.Error()) {
 		return err
@@ -76,16 +82,17 @@ func (c *Connector) writeImages(offerId string, images []string) error {
 	}
 
 	params := make([]interface{}, 0)
+	now := time.Now().Unix()
 
 	paramsPattern := ""
 	sep := ""
 	for _, image := range images {
-		paramsPattern += sep + "(?, ?)"
+		paramsPattern += sep + "(?, ?, ?)"
 		sep = ", "
-		params = append(params, offerId, image)
+		params = append(params, offerId, image, now)
 	}
 
-	query := "INSERT INTO image (offer_id, path) VALUES " + paramsPattern
+	query := "INSERT INTO image (offer_id, path, created) VALUES " + paramsPattern
 	_, err := c.DB.Exec(query, params...)
 	if err != nil && !regexContain.MatchString(err.Error()) {
 		return err
@@ -96,7 +103,7 @@ func (c *Connector) writeImages(offerId string, images []string) error {
 
 // CleanFromExistOrders - clears the map of offers that are already in
 //  the database
-func (c *Connector) CleanFromExistOrders(offers map[uint64]string) error {
+func (c *Connector) CleanFromExistOrders(offers map[uint64]string, siteName string) error {
 	params := make([]interface{}, 0)
 
 	paramsPattern := ""
@@ -107,7 +114,16 @@ func (c *Connector) CleanFromExistOrders(offers map[uint64]string) error {
 		params = append(params, id)
 	}
 
-	query := fmt.Sprintf("SELECT id FROM offer WHERE id IN (%s)", paramsPattern)
+	params = append(params, siteName)
+
+	query := fmt.Sprintf(`
+	SELECT id
+	FROM offer
+	WHERE id IN (%s)
+		AND site = ?
+	`,
+		paramsPattern,
+	)
 	rows, err := c.DB.Query(query, params...)
 	if err != nil {
 		return err
@@ -237,6 +253,8 @@ func (c *Connector) ReadNextOffer(chat *structs.Chat) (*structs.Offer, error) {
 		of.room_numbers,
 		of.area,
 		of.city,
+		of.floor,
+		of.district,
 		of.room_type,
 		of.images,
 		of.body
@@ -254,6 +272,10 @@ func (c *Connector) ReadNextOffer(chat *structs.Chat) (*structs.Offer, error) {
 
 	if chat.KGS.String() != "0:0" || chat.USD.String() != "0:0" {
 		query.WriteString(priceFilter(chat.USD, chat.KGS))
+	}
+
+	if !chat.Diesel || !chat.Lalafo {
+		query.WriteString(siteFilter(chat.Diesel, chat.Lalafo))
 	}
 
 	query.WriteString(" 	ORDER BY of.created;")
@@ -274,6 +296,8 @@ func (c *Connector) ReadNextOffer(chat *structs.Chat) (*structs.Offer, error) {
 		&offer.Rooms,
 		&offer.Area,
 		&offer.City,
+		&offer.Floor,
+		&offer.District,
 		&offer.RoomType,
 		&offer.Images,
 		&offer.Body,
@@ -296,13 +320,23 @@ func priceFilter(usd, kgs structs.Price) string {
 	}
 
 	if kgs.String() == "0:0" {
-		f.WriteString(" or of.currency = 'сом'")
+		f.WriteString(" or of.currency = 'kgs'")
 	} else {
-		f.WriteString(fmt.Sprintf(" or (of.price between %d and %d and of.currency = 'сом')", kgs[0], kgs[1]))
+		f.WriteString(fmt.Sprintf(" or (of.price between %d and %d and of.currency = 'kgs')", kgs[0], kgs[1]))
 	}
 
 	f.WriteString(" )")
 	return f.String()
+}
+
+func siteFilter(diesel, lalafo bool) string {
+	if !diesel && lalafo {
+		return fmt.Sprintf(" AND of.site == '%s'", structs.SiteLalafo)
+	}
+	if diesel && !lalafo {
+		return fmt.Sprintf(" AND of.site == '%s'", structs.SiteDiesel)
+	}
+	return " AND of.site == ''"
 }
 
 func (c *Connector) ReadOfferDescription(msgId int, chatId int64) (uint64, string, error) {

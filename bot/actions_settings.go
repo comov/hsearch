@@ -75,6 +75,14 @@ func (b *Bot) searchCallback(query *tgbotapi.CallbackQuery) {
 		chat.Enable = true
 	case "searchOff":
 		chat.Enable = false
+	case "dieselOn":
+		chat.Diesel = true
+	case "dieselOff":
+		chat.Diesel = false
+	case "lalafoOn":
+		chat.Lalafo = true
+	case "lalafoOff":
+		chat.Lalafo = false
 	}
 
 	err = b.storage.UpdateSettings(chat)

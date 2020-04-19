@@ -11,6 +11,9 @@ const (
 	KindOffer       = "offer"
 	KindPhoto       = "photo"
 	KindDescription = "description"
+
+	SiteDiesel = "diesel"
+	SiteLalafo = "lalafo"
 )
 
 type (
@@ -43,6 +46,7 @@ type (
 	Offer struct {
 		Id         uint64
 		Created    int64
+		Site       string
 		Url        string
 		Topic      string
 		FullPrice  string
@@ -51,6 +55,8 @@ type (
 		Phone      string
 		Rooms      string
 		Area       string
+		Floor      string
+		District   string
 		City       string
 		RoomType   string
 		Body       string

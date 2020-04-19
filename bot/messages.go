@@ -34,13 +34,6 @@ func DefaultMessage(offer *structs.Offer) string {
 		message.WriteString("\n")
 	}
 
-	if offer.RoomType != "" {
-		message.Grow(len("Тип помещения: ") + len(offer.RoomType) + len("\n"))
-		message.WriteString("Тип помещения: ")
-		message.WriteString(offer.RoomType)
-		message.WriteString("\n")
-	}
-
 	if offer.Rooms != "" {
 		message.Grow(len("Комнат: ") + len(offer.Rooms) + len("\n"))
 		message.WriteString("Комнат: ")
@@ -48,17 +41,24 @@ func DefaultMessage(offer *structs.Offer) string {
 		message.WriteString("\n")
 	}
 
+	if offer.Floor != "" {
+		message.Grow(len("Этаж: ") + len(offer.Floor) + len("\n"))
+		message.WriteString("Этаж: ")
+		message.WriteString(offer.Floor)
+		message.WriteString("\n")
+	}
+
+	if offer.District != "" {
+		message.Grow(len("Район: ") + len(offer.District) + len("\n"))
+		message.WriteString("Район: ")
+		message.WriteString(offer.District)
+		message.WriteString("\n")
+	}
+
 	if offer.Area != "" {
 		message.Grow(len("Площадь (кв.м.): ") + len(offer.Area) + len("\n"))
 		message.WriteString("Площадь (кв.м.): ")
 		message.WriteString(offer.Area)
-		message.WriteString("\n")
-	}
-
-	if offer.City != "" {
-		message.Grow(len("Город: ") + len(offer.City) + len("\n"))
-		message.WriteString("Город: ")
-		message.WriteString(offer.City)
 		message.WriteString("\n")
 	}
 

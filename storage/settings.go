@@ -45,12 +45,16 @@ func (c *Connector) UpdateSettings(chat *structs.Chat) error {
 	_, err := c.DB.Exec(`
 	UPDATE chat SET
 		enable = ?,
+		diesel = ?,
+		lalafo = ?,
 		photo = ?,
 		kgs = ?,
 		usd = ?
 	WHERE id = ?
 	`,
 		chat.Enable,
+		chat.Diesel,
+		chat.Lalafo,
 		chat.Photo,
 		chat.KGS,
 		chat.USD,

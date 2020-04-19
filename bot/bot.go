@@ -45,7 +45,7 @@ type (
 func NewTelegramBot(cnf *configs.Config, st Storage) *Bot {
 	bot, err := tgbotapi.NewBotAPI(cnf.TelegramToken)
 	if err != nil {
-		log.Fatalln("[NewBot.NewBotAPI] error: ", err)
+		log.Fatalln("[bot.NewBotAPI] error: ", err)
 		return nil
 	}
 
@@ -72,7 +72,7 @@ func (b *Bot) Start() {
 
 	updates, err := b.bot.GetUpdatesChan(u)
 	if err != nil {
-		log.Fatalln("[Start.GetUpdatesChan] error: ", err)
+		log.Fatalln("[bot.GetUpdatesChan] error: ", err)
 		return
 	}
 
@@ -104,6 +104,10 @@ func (b *Bot) registerCallbacks() {
 	b.callbacks["search"] = b.searchCallback
 	b.callbacks["searchOn"] = b.searchCallback
 	b.callbacks["searchOff"] = b.searchCallback
+	b.callbacks["dieselOn"] = b.searchCallback
+	b.callbacks["dieselOff"] = b.searchCallback
+	b.callbacks["lalafoOn"] = b.searchCallback
+	b.callbacks["lalafoOff"] = b.searchCallback
 
 	// settings filters callbacks
 	b.callbacks["filters"] = b.filtersCallback
@@ -141,7 +145,7 @@ func (b *Bot) messageHandler(update tgbotapi.Update) {
 		message := tgbotapi.NewMessage(update.Message.Chat.ID, msg)
 		_, err := b.bot.Send(message)
 		if err != nil {
-			log.Println("[Start.Message.Send] error: ", err)
+			log.Println("[bot.Send] error: ", err)
 		}
 		return
 	}

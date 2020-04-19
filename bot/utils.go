@@ -3,12 +3,14 @@ package bot
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/comov/hsearch/structs"
-	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/comov/hsearch/structs"
+
+	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 // SendGroupPhotos - sends a group of photos to a chat room, but unlike Send,

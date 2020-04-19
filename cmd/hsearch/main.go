@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	BaseURL      = "http://diesel.elcat.kg/index.php?showforum=305&page=%d"
 	helpCommands = "hsearch: '%s' is not a command.\n" +
 		"usage: go run main.go [migrate]\n\n" +
 		"By default hsearch run offer manager and telegram" +
@@ -56,15 +55,17 @@ func main() {
 		}
 	}
 
-	// Telegram bot и Offer manager в дальнейшем нужно запускать как отдельные
+	// Telegram bot и Background manager в дальнейшем нужно запускать как отдельные
 	// сервисы, а главный поток оставить следить за ними. Таким образом можно
 	// сделать graceful shutdown, reload config да и просто по приколу
 
 	telegramBot := bot.NewTelegramBot(cnf, db)
-	go telegramBot.Start()
 
-	omr := background.StartOfferManager(BaseURL, cnf, db, telegramBot)
-	omr.Start()
+	bgm := background.NewManager(cnf, db, telegramBot)
+	go bgm.StartGrabber()
+	go bgm.StartMatcher()
+
+	telegramBot.Start()
 }
 
 // migrationPath - return path to migrations file
