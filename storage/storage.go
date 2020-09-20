@@ -1,57 +1,58 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
 	"regexp"
 	"time"
 
 	"github.com/comov/hsearch/configs"
 
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/pressly/goose"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/tern/migrate"
 )
 
 type (
 	// Connector - the interface to the storage.
 	Connector struct {
-		DB            *sql.DB
+		ctx           context.Context
+		Conn          *pgx.Conn
 		relevanceTime time.Duration
 	}
 )
 
-// regexContain - sqlite3 does not contain a certain type of error, so we have
+// regexContain - database does not contain a certain type of error, so we have
 //  to search through the text to understand what error was caused.
-var regexContain = regexp.MustCompile(`UNIQUE constraint failed*`)
+var regexContain = regexp.MustCompile(`ERROR: duplicate key value violates unique constraint*`)
 
 // New - creates a connection to the base and returns the interface to work
 //  with the storage.
-func New(cnf *configs.Config) (*Connector, error) {
-	db, err := sql.Open("sqlite3", "hsearch.db?cache=shared")
+func New(ctx context.Context, cnf *configs.Config) (*Connector, error) {
+	conn, err := pgx.Connect(ctx, cnf.PgConnString)
 	if err != nil {
 		return nil, err
 	}
 
-	// sqlite3 is a simple file storage that is very fragile for multi-threaded
-	//  operation. Therefore, we set limits that do not apply to PG or MySql.
-	db.SetMaxOpenConns(1)
-
 	return &Connector{
-		DB:            db,
+		Conn:          conn,
 		relevanceTime: cnf.RelevanceTime,
 	}, nil
 }
 
 // Migrate - Applies the changes recorded in the migration files to the
 //  database.
-func (c *Connector) Migrate(path string) error {
-	err := goose.SetDialect("sqlite3")
+func (c *Connector) Migrate(ctx context.Context, path string) error {
+	migrator, err := migrate.NewMigrator(ctx, c.Conn, "versions")
 	if err != nil {
 		return err
 	}
-	err = goose.Run("up", c.DB, path)
-	if err == goose.ErrNoNextVersion {
-		return nil
+	err = migrator.LoadMigrations(path)
+	if err != nil {
+		return err
 	}
+	return migrator.Migrate(ctx)
+}
 
-	return err
+// Close - close connection with database
+func (c *Connector) Close(ctx context.Context) {
+	_ = c.Conn.Close(ctx)
 }

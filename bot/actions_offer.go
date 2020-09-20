@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"log"
 
 	"github.com/comov/hsearch/structs"
@@ -34,8 +35,9 @@ func getKeyboard(offer *structs.Offer) tgbotapi.InlineKeyboardMarkup {
 }
 
 // dislike - this button delete order from chat and no more show to user that order
-func (b *Bot) dislike(query *tgbotapi.CallbackQuery) {
+func (b *Bot) dislike(ctx context.Context, query *tgbotapi.CallbackQuery) {
 	messagesIds, err := b.storage.Dislike(
+		ctx,
 		query.Message.MessageID,
 		query.Message.Chat.ID,
 	)
@@ -63,8 +65,9 @@ func (b *Bot) dislike(query *tgbotapi.CallbackQuery) {
 }
 
 // description - return full description about order
-func (b *Bot) description(query *tgbotapi.CallbackQuery) {
+func (b *Bot) description(ctx context.Context, query *tgbotapi.CallbackQuery) {
 	offerId, body, err := b.storage.ReadOfferDescription(
+		ctx,
 		query.Message.MessageID,
 		query.Message.Chat.ID,
 	)
@@ -82,6 +85,7 @@ func (b *Bot) description(query *tgbotapi.CallbackQuery) {
 	}
 
 	err = b.storage.SaveMessage(
+		ctx,
 		send.MessageID,
 		offerId,
 		query.Message.Chat.ID,
@@ -93,10 +97,8 @@ func (b *Bot) description(query *tgbotapi.CallbackQuery) {
 }
 
 // photo - this button return all orders photos from site
-func (b *Bot) photo(query *tgbotapi.CallbackQuery) {
-	offerId, images, err := b.storage.ReadOfferImages(
-		query.Message.MessageID, query.Message.Chat.ID,
-	)
+func (b *Bot) photo(ctx context.Context, query *tgbotapi.CallbackQuery) {
+	offerId, images, err := b.storage.ReadOfferImages(ctx, query.Message.MessageID, query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[photo.ReadOfferDescription] error:", err)
 		return
@@ -104,10 +106,7 @@ func (b *Bot) photo(query *tgbotapi.CallbackQuery) {
 
 	waitMessage := tgbotapi.Message{}
 	if len(images) != 0 {
-		waitMessage, err = b.bot.Send(tgbotapi.NewMessage(
-			query.Message.Chat.ID,
-			WaitPhotoMessage(len(images)),
-		))
+		waitMessage, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, WaitPhotoMessage(len(images))))
 		if err != nil {
 			log.Println("[photo.Send] error:", err)
 		}
@@ -129,6 +128,7 @@ func (b *Bot) photo(query *tgbotapi.CallbackQuery) {
 
 		for _, msg := range messages {
 			err = b.storage.SaveMessage(
+				ctx,
 				msg.MessageID,
 				offerId,
 				query.Message.Chat.ID,
@@ -141,10 +141,7 @@ func (b *Bot) photo(query *tgbotapi.CallbackQuery) {
 	}
 
 	if len(images) != 0 {
-		_, err := b.bot.DeleteMessage(tgbotapi.NewDeleteMessage(
-			query.Message.Chat.ID,
-			waitMessage.MessageID,
-		))
+		_, err := b.bot.DeleteMessage(tgbotapi.NewDeleteMessage(query.Message.Chat.ID, waitMessage.MessageID))
 
 		if err != nil {
 			log.Println("[photo.DeleteMessage] error:", err)

@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"github.com/jackc/pgx/v4"
 	"log"
 	"strconv"
 	"strings"
@@ -13,8 +15,8 @@ import (
 
 // WriteOffer - records Offer in the database with the pictures and returns Id
 //  to the structure.
-func (c *Connector) WriteOffer(offer *structs.Offer) error {
-	_, err := c.DB.Exec(`INSERT INTO offer (
+func (c *Connector) WriteOffer(ctx context.Context, offer *structs.Offer) error {
+	_, err := c.Conn.Exec(ctx, `INSERT INTO offer (
 		id,
 		created,
 		site,
@@ -31,7 +33,7 @@ func (c *Connector) WriteOffer(offer *structs.Offer) error {
 		city,
 		room_type,
 		body,
-		images) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+		images) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);`,
 		offer.Id,
 		time.Now().Unix(),
 		offer.Site,
@@ -53,18 +55,18 @@ func (c *Connector) WriteOffer(offer *structs.Offer) error {
 	if err != nil && !regexContain.MatchString(err.Error()) {
 		return err
 	}
-	return c.writeImages(strconv.Itoa(int(offer.Id)), offer.ImagesList)
+	return c.writeImages(ctx, strconv.Itoa(int(offer.Id)), offer.ImagesList)
 }
 
 // WriteOffers - writes bulk from offers along with pictures to the fd.
-func (c *Connector) WriteOffers(offers []*structs.Offer) (int, error) {
+func (c *Connector) WriteOffers(ctx context.Context, offers []*structs.Offer) (int, error) {
 	newOffersCount := 0
 	// TODO: как видно, сейчас это сделано через простой цикл, но лучше
 	//  предоставить это самому хранилищу. Сделать bulk insert, затем запросить
 	//  Id по ExtId и записать картины. Не было времени сделать это сразу
 	for i := range offers {
 		offer := offers[i]
-		err := c.WriteOffer(offer)
+		err := c.WriteOffer(ctx, offer)
 		if err != nil {
 			return newOffersCount, err
 		}
@@ -76,7 +78,7 @@ func (c *Connector) WriteOffers(offers []*structs.Offer) (int, error) {
 
 // writeImages - так как картинки храняться в отдельной таблице, то пишем мы их
 // отдельно
-func (c *Connector) writeImages(offerId string, images []string) error {
+func (c *Connector) writeImages(ctx context.Context, offerId string, images []string) error {
 	if len(images) <= 0 {
 		return nil
 	}
@@ -85,15 +87,17 @@ func (c *Connector) writeImages(offerId string, images []string) error {
 	now := time.Now().Unix()
 
 	paramsPattern := ""
+	paramsNum := 1
 	sep := ""
 	for _, image := range images {
-		paramsPattern += sep + "(?, ?, ?)"
+		paramsPattern += sep + fmt.Sprintf("($%d, $%d, $%d)", paramsNum, paramsNum+1, paramsNum+2) // todo: fixed
 		sep = ", "
 		params = append(params, offerId, image, now)
+		paramsNum += 3
 	}
 
 	query := "INSERT INTO image (offer_id, path, created) VALUES " + paramsPattern
-	_, err := c.DB.Exec(query, params...)
+	_, err := c.Conn.Exec(ctx, query, params...)
 	if err != nil && !regexContain.MatchString(err.Error()) {
 		return err
 	}
@@ -103,15 +107,17 @@ func (c *Connector) writeImages(offerId string, images []string) error {
 
 // CleanFromExistOrders - clears the map of offers that are already in
 //  the database
-func (c *Connector) CleanFromExistOrders(offers map[uint64]string, siteName string) error {
+func (c *Connector) CleanFromExistOrders(ctx context.Context, offers map[uint64]string, siteName string) error {
 	params := make([]interface{}, 0)
 
 	paramsPattern := ""
+	paramsNum := 1
 	sep := ""
 	for id := range offers {
-		paramsPattern += sep + "?"
+		paramsPattern += fmt.Sprintf("%s$%d", sep, paramsNum)
 		sep = ", "
 		params = append(params, id)
+		paramsNum += 1
 	}
 
 	params = append(params, siteName)
@@ -120,21 +126,17 @@ func (c *Connector) CleanFromExistOrders(offers map[uint64]string, siteName stri
 	SELECT id
 	FROM offer
 	WHERE id IN (%s)
-		AND site = ?
+		AND site = $%d
 	`,
 		paramsPattern,
+		paramsNum,
 	)
-	rows, err := c.DB.Query(query, params...)
+	rows, err := c.Conn.Query(ctx, query, params...)
 	if err != nil {
 		return err
 	}
 
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			log.Println("[CleanFromExistOrders.Close] error:", err)
-		}
-	}()
+	defer rows.Close()
 
 	for rows.Next() {
 		exId := uint64(0)
@@ -152,14 +154,15 @@ func (c *Connector) CleanFromExistOrders(offers map[uint64]string, siteName stri
 
 // Dislike - mark offer as bad for user or group and return all message ids
 //  (description and photos) for delete from chat.
-func (c *Connector) Dislike(msgId int, chatId int64) ([]int, error) {
+func (c *Connector) Dislike(ctx context.Context, msgId int, chatId int64) ([]int, error) {
 	offerId := uint64(0)
 	msgIds := make([]int, 0)
-	err := c.DB.QueryRow(
+	err := c.Conn.QueryRow(
+		ctx,
 		`SELECT offer_id
 				FROM tg_messages
-				WHERE message_id = ?
-					AND chat = ?;`,
+				WHERE message_id = $1
+					AND chat = $2;`,
 		msgId,
 		chatId,
 	).Scan(
@@ -169,18 +172,20 @@ func (c *Connector) Dislike(msgId int, chatId int64) ([]int, error) {
 		return msgIds, err
 	}
 
-	_, _ = c.DB.Exec(
+	_, _ = c.Conn.Exec(
+		ctx,
 		`INSERT INTO answer (chat, offer_id, dislike, created)
-				VALUES (?, ?, ?, ?);`,
+				VALUES ($1, $2, $3, $4);`,
 		chatId,
 		offerId,
-		1,
+		true,
 		time.Now().Unix(),
 	)
 
 	// load all message with offerId and delete
-	rows, err := c.DB.Query(
-		`SELECT message_id FROM tg_messages WHERE offer_id = ? AND chat = ?;`,
+	rows, err := c.Conn.Query(
+		ctx,
+		`SELECT message_id FROM tg_messages WHERE offer_id = $1 AND chat = $2;`,
 		offerId,
 		chatId,
 	)
@@ -192,12 +197,7 @@ func (c *Connector) Dislike(msgId int, chatId int64) ([]int, error) {
 		return msgIds, err
 	}
 
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			log.Println("[Dislike] error:", err)
-		}
-	}()
+	defer rows.Close()
 
 	for rows.Next() {
 		var mId int
@@ -212,13 +212,13 @@ func (c *Connector) Dislike(msgId int, chatId int64) ([]int, error) {
 	return msgIds, err
 }
 
-func (c *Connector) ReadNextOffer(chat *structs.Chat) (*structs.Offer, error) {
+func (c *Connector) ReadNextOffer(ctx context.Context, chat *structs.Chat) (*structs.Offer, error) {
 	offer := new(structs.Offer)
 	now := time.Now()
 
 	var query strings.Builder
 	query.WriteString(`
-	SELECT DISTINCT
+	SELECT
 		of.id,
 		of.url,
 		of.topic,
@@ -235,10 +235,10 @@ func (c *Connector) ReadNextOffer(chat *structs.Chat) (*structs.Offer, error) {
 		of.images,
 		of.body
 	FROM offer of
-	LEFT JOIN answer u on (of.id = u.offer_id AND u.chat = ?)
-	LEFT JOIN tg_messages sm on (of.id = sm.offer_id AND sm.chat = ?)
-	WHERE of.created >= ?
-		AND (u.dislike = 0 OR u.dislike IS NULL)
+	LEFT JOIN answer u on (of.id = u.offer_id AND u.chat = $1)
+	LEFT JOIN tg_messages sm on (of.id = sm.offer_id AND sm.chat = $2)
+	WHERE of.created >= $3
+		AND (u.dislike is false OR u.dislike IS NULL)
 		AND sm.created IS NULL
 	`)
 
@@ -253,7 +253,8 @@ func (c *Connector) ReadNextOffer(chat *structs.Chat) (*structs.Offer, error) {
 	query.WriteString(siteFilter(chat.Diesel, chat.House, chat.Lalafo))
 	query.WriteString(" 	ORDER BY of.created;")
 
-	err := c.DB.QueryRow(
+	err := c.Conn.QueryRow(
+		ctx,
 		query.String(),
 		chat.Id,
 		chat.Id,
@@ -276,7 +277,7 @@ func (c *Connector) ReadNextOffer(chat *structs.Chat) (*structs.Offer, error) {
 		&offer.Body,
 	)
 
-	if err != nil && err == sql.ErrNoRows {
+	if err != nil && err == pgx.ErrNoRows {
 		return nil, nil
 	}
 
@@ -314,7 +315,8 @@ func siteFilter(diesel, house, lalafo bool) string {
 		sites = append(sites, structs.SiteLalafo)
 	}
 	switch len(sites) {
-	case 1: return fmt.Sprintf(" AND of.site == '%s'", sites[0])
+	case 1:
+		return fmt.Sprintf(" AND of.site == '%s'", sites[0])
 	case 2:
 		sitesStr, sep := "", ""
 		for _, site := range sites {
@@ -326,10 +328,11 @@ func siteFilter(diesel, house, lalafo bool) string {
 	return ""
 }
 
-func (c *Connector) ReadOfferDescription(msgId int, chatId int64) (uint64, string, error) {
+func (c *Connector) ReadOfferDescription(ctx context.Context, msgId int, chatId int64) (uint64, string, error) {
 	offerId := uint64(0)
-	err := c.DB.QueryRow(
-		"SELECT offer_id FROM tg_messages WHERE message_id = ? AND chat = ?;",
+	err := c.Conn.QueryRow(
+		ctx,
+		"SELECT offer_id FROM tg_messages WHERE message_id = $1 AND chat = $2;",
 		msgId,
 		chatId,
 	).Scan(
@@ -340,7 +343,7 @@ func (c *Connector) ReadOfferDescription(msgId int, chatId int64) (uint64, strin
 	}
 
 	description := ""
-	err = c.DB.QueryRow(`SELECT body FROM offer of WHERE of.id = ?;`,
+	err = c.Conn.QueryRow(ctx, `SELECT body FROM offer of WHERE of.id = $1;`,
 		offerId,
 	).Scan(
 		&description,
@@ -356,12 +359,13 @@ func (c *Connector) ReadOfferDescription(msgId int, chatId int64) (uint64, strin
 	return offerId, description, nil
 }
 
-func (c *Connector) ReadOfferImages(msgId int, chatId int64) (uint64, []string, error) {
+func (c *Connector) ReadOfferImages(ctx context.Context, msgId int, chatId int64) (uint64, []string, error) {
 	offerId := uint64(0)
 	images := make([]string, 0)
 
-	err := c.DB.QueryRow(
-		"SELECT offer_id FROM tg_messages WHERE message_id = ? AND chat = ?;",
+	err := c.Conn.QueryRow(
+		ctx,
+		"SELECT offer_id FROM tg_messages WHERE message_id = $1 AND chat = $2;",
 		msgId,
 		chatId,
 	).Scan(
@@ -371,7 +375,7 @@ func (c *Connector) ReadOfferImages(msgId int, chatId int64) (uint64, []string, 
 		return offerId, images, err
 	}
 
-	rows, err := c.DB.Query(`SELECT path FROM image im WHERE im.offer_id = ?;`, offerId)
+	rows, err := c.Conn.Query(ctx, `SELECT path FROM image im WHERE im.offer_id = $1;`, offerId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return offerId, images, nil
@@ -379,12 +383,7 @@ func (c *Connector) ReadOfferImages(msgId int, chatId int64) (uint64, []string, 
 		return offerId, images, err
 	}
 
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			log.Println("[ReadOfferImages] error:", err)
-		}
-	}()
+	defer rows.Close()
 
 	for rows.Next() {
 		image := ""
@@ -402,19 +401,19 @@ func (c *Connector) ReadOfferImages(msgId int, chatId int64) (uint64, []string, 
 }
 
 // CleanExpiredOffers - just clean offer table
-func (c *Connector) CleanExpiredOffers(expireDate int64) error {
-	_, err := c.DB.Exec(`DELETE FROM offer WHERE created < ?`, expireDate)
+func (c *Connector) CleanExpiredOffers(ctx context.Context, expireDate int64) error {
+	_, err := c.Conn.Exec(ctx, `DELETE FROM offer WHERE created < $1`, expireDate)
 	return err
 }
 
 // CleanExpiredImages - just clean image table
-func (c *Connector) CleanExpiredImages(expireDate int64) error {
-	_, err := c.DB.Exec(`DELETE FROM image WHERE created < ?`, expireDate)
+func (c *Connector) CleanExpiredImages(ctx context.Context, expireDate int64) error {
+	_, err := c.Conn.Exec(ctx, `DELETE FROM image WHERE created < $1`, expireDate)
 	return err
 }
 
 // CleanExpiredAnswers - just clean answer table
-func (c *Connector) CleanExpiredAnswers(expireDate int64) error {
-	_, err := c.DB.Exec(`DELETE FROM answer WHERE created < ?`, expireDate)
+func (c *Connector) CleanExpiredAnswers(ctx context.Context, expireDate int64) error {
+	_, err := c.Conn.Exec(ctx, `DELETE FROM answer WHERE created < $1`, expireDate)
 	return err
 }

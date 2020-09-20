@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -66,10 +67,9 @@ func buildParams(config tgbotapi.MediaGroupConfig) (url.Values, error) {
 	return v, nil
 }
 
-
 // SendOffer - send the offer to a chat and save the delivery report to a chat
 //  room
-func (b *Bot) SendOffer(offer *structs.Offer, chatId int64) error {
+func (b *Bot) SendOffer(ctx context.Context, offer *structs.Offer, chatId int64) error {
 	message := tgbotapi.NewMessage(chatId, DefaultMessage(offer))
 	message.DisableWebPagePreview = true
 	message.ReplyMarkup = getKeyboard(offer)
@@ -78,7 +78,7 @@ func (b *Bot) SendOffer(offer *structs.Offer, chatId int64) error {
 	if err != nil {
 		return err
 	}
-	return b.storage.SaveMessage(send.MessageID, offer.Id, chatId, structs.KindOffer)
+	return b.storage.SaveMessage(ctx, send.MessageID, offer.Id, chatId, structs.KindOffer)
 }
 
 func (b *Bot) addWaitCallback(c int64, answer answer) {
@@ -87,11 +87,11 @@ func (b *Bot) addWaitCallback(c int64, answer answer) {
 	b.waitAnswers[c] = answer
 }
 
-func (b *Bot) wrongAnswer(message *tgbotapi.Message, a answer) {
+func (b *Bot) wrongAnswer(ctx context.Context, message *tgbotapi.Message, a answer) {
 	a.maxErrors -= 1
 	a.deadline = time.Now().Add(time.Second * 20)
 	if a.maxErrors <= 0 {
-		b.clearRetry(message.Chat, message.MessageID)
+		b.clearRetry(ctx, message.Chat, message.MessageID)
 		return
 	}
 
@@ -107,7 +107,7 @@ func (b *Bot) wrongAnswer(message *tgbotapi.Message, a answer) {
 	b.waitAnswers[message.Chat.ID] = a
 }
 
-func (b *Bot) clearRetry(chat *tgbotapi.Chat, lastMsgId int) {
+func (b *Bot) clearRetry(ctx context.Context, chat *tgbotapi.Chat, lastMsgId int) {
 	a := b.waitAnswers[chat.ID]
 	if lastMsgId != -1 {
 		a.messages = append(a.messages, lastMsgId)
@@ -121,7 +121,7 @@ func (b *Bot) clearRetry(chat *tgbotapi.Chat, lastMsgId int) {
 	}
 
 	if a.menuId != 0 {
-		b.callbacks["filters"](&tgbotapi.CallbackQuery{Message: &tgbotapi.Message{
+		b.callbacks["filters"](ctx, &tgbotapi.CallbackQuery{Message: &tgbotapi.Message{
 			Chat:      chat,
 			MessageID: a.menuId,
 		}})

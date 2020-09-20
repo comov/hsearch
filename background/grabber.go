@@ -1,6 +1,7 @@
 package background
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 // todo: refactor this
 // grabber - парсит удаленные ресурсы, находит предложения и пишет в хранилище,
 // после чего трегерит broker
-func (m *Manager) grabber() {
+func (m *Manager) grabber(ctx context.Context) {
 	// при первом запуске менеджера, он начнет первый парсинг через 2 секунды,
 	// а после изменится на время из настроек (sleep = m.cnf.ManagerDelay)
 	sleep := time.Second * 2
@@ -22,13 +23,13 @@ func (m *Manager) grabber() {
 			sleep = m.cnf.FrequencyTime
 
 			for _, site := range m.sitesForParse {
-				go m.grabbedOffers(site)
+				go m.grabbedOffers(ctx, site)
 			}
 		}
 	}
 }
 
-func (m *Manager) grabbedOffers(site Site) {
+func (m *Manager) grabbedOffers(ctx context.Context, site Site) {
 	log.Printf("[grabber] StartGrabber parse `%s`\n", site.Name())
 	offersLinks, err := parser.FindOffersLinksOnSite(site)
 	if err != nil {
@@ -41,7 +42,7 @@ func (m *Manager) grabbedOffers(site Site) {
 		return
 	}
 
-	err = m.st.CleanFromExistOrders(offersLinks, site.Name())
+	err = m.st.CleanFromExistOrders(ctx, offersLinks, site.Name())
 	if err != nil {
 		log.Printf("[grabber.CleanFromExistOrders] Error: %s\n", err)
 		return
@@ -52,7 +53,7 @@ func (m *Manager) grabbedOffers(site Site) {
 	offers := parser.LoadOffersDetail(offersLinks, site)
 	log.Printf("[grabber] Find %d new offers for site `%s`\n", len(offers), site.Name())
 
-	_, err = m.st.WriteOffers(offers)
+	_, err = m.st.WriteOffers(ctx, offers)
 	if err != nil {
 		log.Printf("[grabber.WriteOffer] Error: %s\n", err)
 	}

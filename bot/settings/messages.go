@@ -10,7 +10,7 @@ import (
 const mainSettingsText = `
 ` + mainSearchText + `
 
-`+ mainFiltersText
+` + mainFiltersText
 
 const mainSearchText = `*Основные настройки поиска*
 Искать для тебя квартиры: %s
@@ -22,7 +22,6 @@ const mainFiltersText = `*Фильтры поиска*
 Только с фото: %s
 Цена в KGS: %s
 Цена в USD: %s`
-
 
 // filter price text
 const (

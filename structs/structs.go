@@ -14,7 +14,7 @@ const (
 
 	SiteDiesel = "diesel"
 	SiteLalafo = "lalafo"
-	SiteHouse = "house"
+	SiteHouse  = "house"
 )
 
 type (
@@ -35,13 +35,12 @@ type (
 		Enable bool
 		Diesel bool
 		Lalafo bool
-		House bool
+		House  bool
 
 		// filters
-		Photo   bool
-		USD     Price
-		KGS     Price
-		UpTrack bool // to send offers if he's is Up
+		Photo bool
+		USD   Price
+		KGS   Price
 	}
 
 	// Offer - posted on the site.
@@ -71,7 +70,6 @@ type (
 		Created int64
 		Chat    uint64
 		Offer   uint64
-		Like    bool
 		Dislike bool
 	}
 

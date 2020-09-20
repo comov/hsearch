@@ -1,6 +1,7 @@
 package background
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 // todo: refactor this
 // matcher - an intermediary to receive all users and start the mailing list
 //  for them
-func (m *Manager) matcher() {
+func (m *Manager) matcher(ctx context.Context) {
 	sleep := time.Second * 2
 
 	log.Printf("[matcher] StartMatcher Manager\n")
@@ -19,23 +20,23 @@ func (m *Manager) matcher() {
 		case <-time.After(sleep):
 			sleep = m.cnf.FrequencyTime
 
-			chats, err := m.st.ReadChatsForMatching(1)
+			chats, err := m.st.ReadChatsForMatching(ctx, 1)
 			if err != nil {
 				log.Printf("[matcher.ReadChatForOrder] Error: %s\n", err)
 				return
 			}
 
 			for _, chat := range chats {
-				go m.matching(chat)
+				go m.matching(ctx, chat)
 			}
 		}
 	}
 }
 
-func (m *Manager) matching(chat *structs.Chat) {
+func (m *Manager) matching(ctx context.Context, chat *structs.Chat) {
 	log.Printf("[matcher] Startmatcher matching for `%s`\n", chat.Title)
 
-	offer, err := m.st.ReadNextOffer(chat)
+	offer, err := m.st.ReadNextOffer(ctx, chat)
 	if err != nil {
 		log.Printf("[matcher] Can't read offer for %s with an error: %s\n", chat.Title, err)
 		return
@@ -46,7 +47,7 @@ func (m *Manager) matching(chat *structs.Chat) {
 		return
 	}
 
-	err = m.bot.SendOffer(offer, chat.Id)
+	err = m.bot.SendOffer(ctx, offer, chat.Id)
 	if err != nil {
 		log.Printf("[matcher] Can't send message for `%s` with an error: %s\n", chat.Title, err)
 		return

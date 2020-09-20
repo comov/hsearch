@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -19,11 +20,15 @@ type Config struct {
 	OrderRelevance  string `env:"ORDER_RELEVANCE"`
 	TelegramToken   string `env:"T_TOKEN"`
 	TelegramChatId  int64  `env:"T_CHAT_ID"`
+	PgPassword      string `env:"POSTGRES_PASSWORD"`
+	PgHost          string `env:"POSTGRES_HOST"`
+	PgPort          int32  `env:"POSTGRES_PORT"`
 
 	FrequencyTime time.Duration
 	RelevanceTime time.Duration
 
-	ExpireDays int
+	ExpireDays   int
+	PgConnString string
 }
 
 // GetConf - returns the application configuration
@@ -32,6 +37,9 @@ func GetConf() (*Config, error) {
 		Release:         Release,
 		ParserFrequency: "1m",
 		OrderRelevance:  "2m",
+		PgPassword:      "hsearch",
+		PgHost:          "localhost",
+		PgPort:          5432,
 		ExpireDays:      14,
 	}
 
@@ -63,6 +71,12 @@ func GetConf() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	cfg.PgConnString = fmt.Sprintf("user=hsearch password=%s host=%s port=%d dbname=hsearch",
+		cfg.PgPassword,
+		cfg.PgHost,
+		cfg.PgPort,
+	)
 
 	return cfg, nil
 }

@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"log"
 	"sync"
 	"time"
@@ -13,19 +14,19 @@ import (
 
 type (
 	Storage interface {
-		Dislike(msgId int, chatId int64) ([]int, error)
-		Feedback(chat int64, username, body string) error
+		Dislike(ctx context.Context, msgId int, chatId int64) ([]int, error)
+		Feedback(ctx context.Context, chat int64, username, body string) error
 
-		SaveMessage(msgId int, offerId uint64, chat int64, kind string) error
-		ReadOfferDescription(msgId int, chatId int64) (uint64, string, error)
-		ReadOfferImages(msgId int, chatId int64) (uint64, []string, error)
+		SaveMessage(ctx context.Context, msgId int, offerId uint64, chat int64, kind string) error
+		ReadOfferDescription(ctx context.Context, msgId int, chatId int64) (uint64, string, error)
+		ReadOfferImages(ctx context.Context, msgId int, chatId int64) (uint64, []string, error)
 
-		ReadChat(id int64) (*structs.Chat, error)
-		CreateChat(id int64, username, title, cType string) error
-		UpdateSettings(chat *structs.Chat) error
+		ReadChat(ctx context.Context, id int64) (*structs.Chat, error)
+		CreateChat(ctx context.Context, id int64, username, title, cType string) error
+		UpdateSettings(ctx context.Context, chat *structs.Chat) error
 	}
 
-	callback func(query *tgbotapi.CallbackQuery)
+	callback func(ctx context.Context, query *tgbotapi.CallbackQuery)
 
 	Bot struct {
 		bot       *tgbotapi.BotAPI
@@ -77,12 +78,13 @@ func (b *Bot) Start() {
 
 	log.Printf("[bot] Start listen Telegram chanel. Version %s\n", b.release)
 	for update := range updates {
+		ctx := context.Background()
 		if update.CallbackQuery != nil {
-			go b.callbackHandler(update)
+			go b.callbackHandler(ctx, update)
 		}
 
 		if update.Message != nil {
-			go b.messageHandler(update)
+			go b.messageHandler(ctx, update)
 		}
 	}
 }
@@ -118,26 +120,24 @@ func (b *Bot) registerCallbacks() {
 }
 
 // callbackHandler - handle all callback from user in go routines
-func (b *Bot) callbackHandler(update tgbotapi.Update) {
-	b.callbacks[update.CallbackQuery.Data](update.CallbackQuery)
+func (b *Bot) callbackHandler(ctx context.Context, update tgbotapi.Update) {
+	b.callbacks[update.CallbackQuery.Data](ctx, update.CallbackQuery)
 }
 
 // messageHandler - handle all user message from user in go routines
-func (b *Bot) messageHandler(update tgbotapi.Update) {
+func (b *Bot) messageHandler(ctx context.Context, update tgbotapi.Update) {
 	if update.Message.IsCommand() {
 		msg := ""
 		switch update.Message.Command() {
 		case "start":
-			msg = b.start(update.Message)
+			msg = b.start(ctx, update.Message)
 		case "help":
 			msg = b.help(update.Message)
 		case "settings":
-			b.callbacks["settings"](&tgbotapi.CallbackQuery{
-				Message: update.Message,
-			})
+			b.callbacks["settings"](ctx, &tgbotapi.CallbackQuery{Message: update.Message})
 			return
 		case "feedback":
-			msg = b.feedback(update.Message)
+			msg = b.feedback(ctx, update.Message)
 		default:
 			msg = "Нет среди доступных команд :("
 		}
@@ -149,23 +149,23 @@ func (b *Bot) messageHandler(update tgbotapi.Update) {
 		}
 		return
 	}
-	b.answerListener(update.Message)
+	b.answerListener(ctx, update.Message)
 }
 
 // answerListener - if we need wait answer from some chat, we add waite command
 //  to waitAnswers. This function listen all message and check need wait answer
 //  or not. If need, we call callback and remove from wait map
-func (b *Bot) answerListener(message *tgbotapi.Message) {
+func (b *Bot) answerListener(ctx context.Context, message *tgbotapi.Message) {
 	b.waitMutex.Lock()
 	defer b.waitMutex.Unlock()
 
 	answer, ok := b.waitAnswers[message.Chat.ID]
 	if ok {
 		if answer.deadline.Unix() > time.Now().Unix() {
-			answer.callback(message, answer)
+			answer.callback(ctx, message, answer)
 			return
 		}
 
-		b.clearRetry(message.Chat, -1)
+		b.clearRetry(ctx, message.Chat, -1)
 	}
 }

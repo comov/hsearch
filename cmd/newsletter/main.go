@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -15,17 +16,21 @@ import (
 var releases map[string]string
 
 func main() {
+	ctx := context.Background()
+
 	cnf, err := configs.GetConf()
 	if err != nil {
 		log.Fatalln("[main.GetConf] error: ", err)
 	}
 
-	db, err := storage.New(cnf)
+	db, err := storage.New(ctx, cnf)
 	if err != nil {
 		log.Fatalln("[main.storage.New] error: ", err)
 	}
 
-	chats, err := db.ReadChatsForMatching(-1)
+	defer db.Close(ctx)
+
+	chats, err := db.ReadChatsForMatching(ctx, -1)
 	if err != nil {
 		log.Fatalln("[db.ReadChatsForMatching] error: ", err)
 	}

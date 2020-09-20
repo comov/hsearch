@@ -1,33 +1,77 @@
+# github.com/Masterminds/goutils v1.1.0
+github.com/Masterminds/goutils
+# github.com/Masterminds/semver v1.5.0
+github.com/Masterminds/semver
+# github.com/Masterminds/sprig v2.22.0+incompatible
+github.com/Masterminds/sprig
 # github.com/PuerkitoBio/goquery v1.5.1
-## explicit
 github.com/PuerkitoBio/goquery
 # github.com/andybalholm/cascadia v1.1.0
 github.com/andybalholm/cascadia
 # github.com/caarlos0/env/v6 v6.3.0
-## explicit
 github.com/caarlos0/env/v6
 # github.com/getsentry/sentry-go v0.7.0
-## explicit
 github.com/getsentry/sentry-go
 # github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
-## explicit
 github.com/go-telegram-bot-api/telegram-bot-api
+# github.com/google/uuid v1.1.1
+github.com/google/uuid
+# github.com/huandu/xstrings v1.3.0
+github.com/huandu/xstrings
+# github.com/imdario/mergo v0.3.9
+github.com/imdario/mergo
+# github.com/jackc/chunkreader/v2 v2.0.1
+github.com/jackc/chunkreader/v2
+# github.com/jackc/pgconn v1.6.4
+github.com/jackc/pgconn
+github.com/jackc/pgconn/stmtcache
+github.com/jackc/pgconn/internal/ctxwatch
+# github.com/jackc/pgerrcode v0.0.0-20190803225404-afa3381909a6
+github.com/jackc/pgerrcode
+# github.com/jackc/pgio v1.0.0
+github.com/jackc/pgio
+# github.com/jackc/pgpassfile v1.0.0
+github.com/jackc/pgpassfile
+# github.com/jackc/pgproto3/v2 v2.0.2
+github.com/jackc/pgproto3/v2
+# github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b
+github.com/jackc/pgservicefile
+# github.com/jackc/pgtype v1.4.2
+github.com/jackc/pgtype
+# github.com/jackc/pgx/v4 v4.8.1
+github.com/jackc/pgx/v4
+github.com/jackc/pgx/v4/internal/sanitize
+# github.com/jackc/tern v1.12.1
+github.com/jackc/tern/migrate
 # github.com/joho/godotenv v1.3.0
-## explicit
-github.com/joho/godotenv
 github.com/joho/godotenv/autoload
-# github.com/mattn/go-sqlite3 v1.14.0
-## explicit
-github.com/mattn/go-sqlite3
-# github.com/pkg/errors v0.9.1
-## explicit
-github.com/pkg/errors
-# github.com/pressly/goose v2.6.0+incompatible
-## explicit
-github.com/pressly/goose
+github.com/joho/godotenv
+# github.com/mitchellh/copystructure v1.0.0
+github.com/mitchellh/copystructure
+# github.com/mitchellh/reflectwalk v1.0.0
+github.com/mitchellh/reflectwalk
 # github.com/technoweenie/multipartstreamer v1.0.1
-## explicit
 github.com/technoweenie/multipartstreamer
-# golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
+# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+golang.org/x/crypto/pbkdf2
+golang.org/x/crypto/scrypt
+# golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 golang.org/x/net/html
 golang.org/x/net/html/atom
+# golang.org/x/text v0.3.3
+golang.org/x/text/secure/precis
+golang.org/x/text/cases
+golang.org/x/text/language
+golang.org/x/text/runes
+golang.org/x/text/secure/bidirule
+golang.org/x/text/transform
+golang.org/x/text/unicode/norm
+golang.org/x/text/width
+golang.org/x/text/internal
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
+golang.org/x/text/unicode/bidi
+golang.org/x/text/internal/tag
+# golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+golang.org/x/xerrors
+golang.org/x/xerrors/internal

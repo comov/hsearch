@@ -1,6 +1,7 @@
 package background
 
 import (
+	"context"
 	"github.com/comov/hsearch/configs"
 	"github.com/comov/hsearch/parser"
 	"github.com/comov/hsearch/structs"
@@ -10,20 +11,20 @@ import (
 
 type (
 	Storage interface {
-		WriteOffers(offer []*structs.Offer) (int, error)
-		ReadChatsForMatching(enable int) ([]*structs.Chat, error)
-		ReadNextOffer(chat *structs.Chat) (*structs.Offer, error)
-		CleanFromExistOrders(offers map[uint64]string, siteName string) error
+		WriteOffers(ctx context.Context, offer []*structs.Offer) (int, error)
+		ReadChatsForMatching(ctx context.Context, enable int) ([]*structs.Chat, error)
+		ReadNextOffer(ctx context.Context, chat *structs.Chat) (*structs.Offer, error)
+		CleanFromExistOrders(ctx context.Context, offers map[uint64]string, siteName string) error
 
 		// GarbageCollector methods
-		CleanExpiredOffers(expireDate int64) error
-		CleanExpiredImages(expireDate int64) error
-		CleanExpiredAnswers(expireDate int64) error
-		CleanExpiredTGMessages(expireDate int64) error
+		CleanExpiredOffers(ctx context.Context, expireDate int64) error
+		CleanExpiredImages(ctx context.Context, expireDate int64) error
+		CleanExpiredAnswers(ctx context.Context, expireDate int64) error
+		CleanExpiredTGMessages(ctx context.Context, expireDate int64) error
 	}
 
 	Bot interface {
-		SendOffer(offer *structs.Offer, chatId int64) error
+		SendOffer(ctx context.Context, offer *structs.Offer, chatId int64) error
 	}
 
 	Site interface {
@@ -58,17 +59,16 @@ func NewManager(cnf *configs.Config, st Storage, bot Bot) *Manager {
 }
 
 // StartGarbageCollector - runs garbage collection in the form of old records that no longer make sense
-func (m *Manager) StartGarbageCollector() {
-	m.garbage()
+func (m *Manager) StartGarbageCollector(ctx context.Context) {
+	m.garbage(ctx)
 }
 
-
 // StartGrabber - starts the process of finding new offers
-func (m *Manager) StartGrabber() {
-	m.grabber()
+func (m *Manager) StartGrabber(ctx context.Context) {
+	m.grabber(ctx)
 }
 
 // StartGrabber - starts the search process for chats
-func (m *Manager) StartMatcher() {
-	m.matcher()
+func (m *Manager) StartMatcher(ctx context.Context) {
+	m.matcher(ctx)
 }

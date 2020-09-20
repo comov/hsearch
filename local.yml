@@ -1,0 +1,16 @@
+version: '3.3'
+
+services:
+  postgres:
+    image: postgres:13-alpine
+    container_name: hsearch_db
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - 65432:5432
+
+volumes:
+  pgdata:

@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -15,8 +16,8 @@ func (b *Bot) help(_ *tgbotapi.Message) string {
 	return helpMessage
 }
 
-func (b *Bot) start(m *tgbotapi.Message) string {
-	_, err := b.storage.ReadChat(m.Chat.ID)
+func (b *Bot) start(ctx context.Context, m *tgbotapi.Message) string {
+	_, err := b.storage.ReadChat(ctx, m.Chat.ID)
 	if err == nil {
 		return "Окей, ты уже нажал /start, можешь больше не нажимать"
 	}
@@ -30,7 +31,7 @@ func (b *Bot) start(m *tgbotapi.Message) string {
 	if m.Chat.IsPrivate() {
 		title = fmt.Sprintf("%s %s", m.Chat.FirstName, m.Chat.LastName)
 	}
-	err = b.storage.CreateChat(m.Chat.ID, m.Chat.UserName, title, m.Chat.Type)
+	err = b.storage.CreateChat(ctx, m.Chat.ID, m.Chat.UserName, title, m.Chat.Type)
 	if err != nil {
 		log.Println("[start.StopSearch] error:", err)
 		return "ААААААА! Чота сламалась. Со мной такое впервые. Атвичаю!"
@@ -38,7 +39,7 @@ func (b *Bot) start(m *tgbotapi.Message) string {
 	return "Отлично! Теперь я буду искать для тебя квартиры"
 }
 
-func (b *Bot) feedback(message *tgbotapi.Message) string {
+func (b *Bot) feedback(_ context.Context, message *tgbotapi.Message) string {
 	b.addWaitCallback(message.Chat.ID, answer{
 		deadline: time.Now().Add(feedBackWait),
 		callback: b.feedbackWaiterCallback,
@@ -46,9 +47,9 @@ func (b *Bot) feedback(message *tgbotapi.Message) string {
 	return feedbackText
 }
 
-func (b *Bot) feedbackWaiterCallback(message *tgbotapi.Message, _ answer) {
+func (b *Bot) feedbackWaiterCallback(ctx context.Context, message *tgbotapi.Message, _ answer) {
 	msgText := "Понял, передам!"
-	err := b.storage.Feedback(message.Chat.ID, message.Chat.UserName, message.Text)
+	err := b.storage.Feedback(ctx, message.Chat.ID, message.Chat.UserName, message.Text)
 	if err != nil {
 		log.Println("[feedbackWaiterCallback.Feedback] error:", err)
 		msgText = "Прости, даже фидбек может быть сломан"
@@ -60,10 +61,7 @@ func (b *Bot) feedbackWaiterCallback(message *tgbotapi.Message, _ answer) {
 	}
 
 	if b.adminChatId != 0 {
-		_, err = b.bot.Send(tgbotapi.NewMessage(
-			b.adminChatId,
-			getFeedbackAdminText(message.Chat, message.Text),
-		))
+		_, err = b.bot.Send(tgbotapi.NewMessage(b.adminChatId, getFeedbackAdminText(message.Chat, message.Text)))
 		if err != nil {
 			log.Println("[feedbackWaiterCallback.Send2] error:", err)
 		}

@@ -1,3 +1,5 @@
 .idea
 .env
 hsearch.db
+*.pyc
+__pycache__

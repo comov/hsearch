@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -19,33 +20,36 @@ const (
 		"By default hsearch run offer manager and telegram" +
 		" bot.\nFor example: go run main.go\n\n" +
 		"Commands:\n" +
-		"\tmigrate - the command for run migration and create DB if not" +
+		"\tmigrate - the command for run migration and create Conn if not" +
 		" exist. Support\n\t the flag -dir for the directory of migrations\n"
 )
 
 func main() {
 	cnf, err := configs.GetConf()
+	ctx := context.Background()
 	if err != nil {
 		log.Fatalln("[main.GetConf] error: ", err)
 	}
 
-	db, err := storage.New(cnf)
+	db, err := storage.New(ctx, cnf)
 	if err != nil {
 		log.Fatalln("[main.storage.New] error: ", err)
 	}
+
+	defer db.Close(ctx)
 
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "migrate":
 			// run migrations and stop
-			err = db.Migrate(migrationPath())
+			err = db.Migrate(ctx, migrationPath())
 			if err != nil {
 				log.Fatalln("[main.storage.Migrate] error: ", err)
 			}
 			return
 		case "withmigrate":
 			// like migration bud not stop
-			err = db.Migrate(migrationPath())
+			err = db.Migrate(ctx, migrationPath())
 			if err != nil {
 				log.Fatalln("[main.storage.Migrate] error: ", err)
 			}
@@ -62,9 +66,9 @@ func main() {
 	telegramBot := bot.NewTelegramBot(cnf, db)
 
 	bgm := background.NewManager(cnf, db, telegramBot)
-	go bgm.StartGarbageCollector()
-	go bgm.StartGrabber()
-	go bgm.StartMatcher()
+	go bgm.StartGarbageCollector(ctx)
+	go bgm.StartGrabber(ctx)
+	go bgm.StartMatcher(ctx)
 
 	telegramBot.Start()
 }

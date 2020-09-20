@@ -48,6 +48,24 @@ make dockerrun
 
 For more information, take a look at Makefile
 
+## rsyslog setting
+```shell script
+root@docker-host:~# cat /etc/rsyslog.d/30-docker.conf
+$FileCreateMode 0644
+template(name="DockerLogFileName" type="list") {
+ constant(value="/var/log/docker/")
+ property(name="syslogtag" securepath="replace" \
+ regex.expression="docker/\\(.*\\)\\[" regex.submatch="1")
+ constant(value=".log")
+}
+
+if $programname == 'docker' then \
+ if $syslogtag contains 'docker/' then \
+ ?DockerLogFileName
+ & stop
+$FileCreateMode 0640
+```
+
 ## Новые возможности:
  - [ ] Не удаляются старые сообщения при клике "Точно нет"
  - [ ] Нет нотификации в desktop приложении "Больше не покажу"

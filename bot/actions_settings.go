@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"log"
 	"strconv"
 	"strings"
@@ -16,7 +17,7 @@ import (
 //  the wrong answers for deletion and the menu to which you want to go back.
 type answer struct {
 	deadline  time.Time
-	callback  func(*tgbotapi.Message, answer)
+	callback  func(context.Context, *tgbotapi.Message, answer)
 	currency  string
 	maxErrors int
 	menuId    int
@@ -30,8 +31,8 @@ const (
 
 //// buttons for configs
 // settingsCallback - show all settings for user
-func (b *Bot) settingsCallback(query *tgbotapi.CallbackQuery) {
-	chat, err := b.storage.ReadChat(query.Message.Chat.ID)
+func (b *Bot) settingsCallback(ctx context.Context, query *tgbotapi.CallbackQuery) {
+	chat, err := b.storage.ReadChat(ctx, query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[settingsCallback.ReadChat] error:", err)
 		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
@@ -48,10 +49,10 @@ func (b *Bot) settingsCallback(query *tgbotapi.CallbackQuery) {
 }
 
 // backCallback - navigation button in settings menu
-func (b *Bot) backCallback(query *tgbotapi.CallbackQuery) {
+func (b *Bot) backCallback(ctx context.Context, query *tgbotapi.CallbackQuery) {
 	for text, key := range settings.BackFlowMap {
 		if strings.Contains(query.Message.Text, text) {
-			b.callbacks[key](query)
+			b.callbacks[key](ctx, query)
 			return
 		}
 	}
@@ -59,8 +60,8 @@ func (b *Bot) backCallback(query *tgbotapi.CallbackQuery) {
 }
 
 // searchCallback - change search parameters for bot
-func (b *Bot) searchCallback(query *tgbotapi.CallbackQuery) {
-	chat, err := b.storage.ReadChat(query.Message.Chat.ID)
+func (b *Bot) searchCallback(ctx context.Context, query *tgbotapi.CallbackQuery) {
+	chat, err := b.storage.ReadChat(ctx, query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[settingsCallback.ReadChat] error:", err)
 		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
@@ -89,7 +90,7 @@ func (b *Bot) searchCallback(query *tgbotapi.CallbackQuery) {
 		chat.Lalafo = false
 	}
 
-	err = b.storage.UpdateSettings(chat)
+	err = b.storage.UpdateSettings(ctx, chat)
 	if err != nil {
 		log.Println("[settingsCallback.ReadChat] error:", err)
 		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
@@ -106,8 +107,8 @@ func (b *Bot) searchCallback(query *tgbotapi.CallbackQuery) {
 }
 
 //// buttons for filters
-func (b *Bot) filtersCallback(query *tgbotapi.CallbackQuery) {
-	chat, err := b.storage.ReadChat(query.Message.Chat.ID)
+func (b *Bot) filtersCallback(ctx context.Context, query *tgbotapi.CallbackQuery) {
+	chat, err := b.storage.ReadChat(ctx, query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[settingsCallback.ReadChat] error:", err)
 		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
@@ -123,8 +124,8 @@ func (b *Bot) filtersCallback(query *tgbotapi.CallbackQuery) {
 	}
 }
 
-func (b *Bot) withPhotoCallback(query *tgbotapi.CallbackQuery) {
-	chat, err := b.storage.ReadChat(query.Message.Chat.ID)
+func (b *Bot) withPhotoCallback(ctx context.Context, query *tgbotapi.CallbackQuery) {
+	chat, err := b.storage.ReadChat(ctx, query.Message.Chat.ID)
 	if err != nil {
 		log.Println("[settingsCallback.ReadChat] error:", err)
 		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
@@ -141,7 +142,7 @@ func (b *Bot) withPhotoCallback(query *tgbotapi.CallbackQuery) {
 		chat.Photo = false
 	}
 
-	err = b.storage.UpdateSettings(chat)
+	err = b.storage.UpdateSettings(ctx, chat)
 	if err != nil {
 		log.Println("[settingsCallback.ReadChat] error:", err)
 		_, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "Прости, говнокод сломался"))
@@ -157,7 +158,7 @@ func (b *Bot) withPhotoCallback(query *tgbotapi.CallbackQuery) {
 	}
 }
 
-func (b *Bot) priceCallback(query *tgbotapi.CallbackQuery) {
+func (b *Bot) priceCallback(_ context.Context, query *tgbotapi.CallbackQuery) {
 	_, err := b.bot.Send(settings.FilterPriceHandler(query.Message, query.Data))
 	if err != nil {
 		log.Println("[priceCallback.Send] error:", err)
@@ -174,28 +175,28 @@ func (b *Bot) priceCallback(query *tgbotapi.CallbackQuery) {
 }
 
 // priceWaiterCallback - process a response from the user
-func (b *Bot) priceWaiterCallback(message *tgbotapi.Message, a answer) {
+func (b *Bot) priceWaiterCallback(ctx context.Context, message *tgbotapi.Message, a answer) {
 	prices := strings.Split(message.Text, "-")
 	if len(prices) < 2 {
-		b.wrongAnswer(message, a)
+		b.wrongAnswer(ctx, message, a)
 		return
 	}
 
 	from, err := strconv.Atoi(strings.TrimSpace(prices[0]))
 	if err != nil {
-		b.wrongAnswer(message, a)
+		b.wrongAnswer(ctx, message, a)
 		log.Println("[priceWaiterCallback] error:", err)
 		return
 	}
 
 	to, err := strconv.Atoi(strings.TrimSpace(prices[1]))
 	if err != nil {
-		b.wrongAnswer(message, a)
+		b.wrongAnswer(ctx, message, a)
 		log.Println("[priceWaiterCallback] error:", err)
 		return
 	}
 
-	chat, err := b.storage.ReadChat(message.Chat.ID)
+	chat, err := b.storage.ReadChat(ctx, message.Chat.ID)
 	if err != nil {
 		log.Println("[settingsCallback.ReadChat] error:", err)
 		_, err = b.bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Прости, говнокод сломался"))
@@ -212,7 +213,7 @@ func (b *Bot) priceWaiterCallback(message *tgbotapi.Message, a answer) {
 		chat.KGS = structs.Price{from, to}
 	}
 
-	err = b.storage.UpdateSettings(chat)
+	err = b.storage.UpdateSettings(ctx, chat)
 	if err != nil {
 		log.Println("[settingsCallback.ReadChat] error:", err)
 		_, err = b.bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Прости, говнокод сломался"))
@@ -222,5 +223,5 @@ func (b *Bot) priceWaiterCallback(message *tgbotapi.Message, a answer) {
 		return
 	}
 
-	b.clearRetry(message.Chat, message.MessageID)
+	b.clearRetry(ctx, message.Chat, message.MessageID)
 }
