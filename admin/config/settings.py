@@ -77,11 +77,6 @@ DATABASES = {
         'HOST': env('POSTGRES_HOST', default='localhost'),
         'PORT': env('POSTGRES_PORT', default='65432'),
     },
-    # todo: delete after migrate
-    'sqlite': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR.joinpath('../') / 'hsearch.db',
-    },
 }
 
 # Password validation
