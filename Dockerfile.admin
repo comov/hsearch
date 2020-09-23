@@ -1,0 +1,14 @@
+FROM python:3.8.5-alpine
+
+RUN apk add --no-cache postgresql-dev gcc g++ linux-headers mailcap
+RUN pip install uwsgi
+
+WORKDIR /srv/admin
+
+COPY admin/requirements.txt /srv/admin/requirements.txt
+RUN pip install -r /srv/admin/requirements.txt
+
+COPY admin /srv/admin
+RUN python manage.py collectstatic --noinput
+
+CMD ["uwsgi","--http-socket", ":8080", "--wsgi-file", "config/wsgi.py", "--processes", "4", "--uid", "root", "--enable-threads", "--static-map=/static=/srv/admin/static"]

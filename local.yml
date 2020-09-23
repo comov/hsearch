@@ -12,5 +12,19 @@ services:
     ports:
       - 65432:5432
 
+  admin:
+    # image:
+    build:
+      dockerfile: Dockerfile.admin
+      context: .
+    container_name: hsearch_admin
+    environment:
+      DJANGO_SECRET_KEY: 'budbwuhevbw9huvbw92r0fj2n0rfj2n'
+      POSTGRES_PASSWORD: 'hsearch'
+      POSTGRES_HOST: hsearch_db
+      POSTGRES_PORT: 5432
+    ports:
+      - 8080:8080
+
 volumes:
   pgdata:
