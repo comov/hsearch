@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+
 	"github.com/comov/hsearch/parser"
 )
 
@@ -33,6 +35,7 @@ func (m *Manager) grabbedOffers(ctx context.Context, site Site) {
 	log.Printf("[grabber] StartGrabber parse `%s`\n", site.Name())
 	offersLinks, err := parser.FindOffersLinksOnSite(site)
 	if err != nil {
+		sentry.CaptureException(err)
 		log.Printf("[grabber.FindOffersLinksOnSite] Error: %s\n", err)
 		return
 	}
@@ -44,6 +47,7 @@ func (m *Manager) grabbedOffers(ctx context.Context, site Site) {
 
 	err = m.st.CleanFromExistOrders(ctx, offersLinks, site.Name())
 	if err != nil {
+		sentry.CaptureException(err)
 		log.Printf("[grabber.CleanFromExistOrders] Error: %s\n", err)
 		return
 	}
@@ -55,6 +59,7 @@ func (m *Manager) grabbedOffers(ctx context.Context, site Site) {
 
 	_, err = m.st.WriteOffers(ctx, offers)
 	if err != nil {
+		sentry.CaptureException(err)
 		log.Printf("[grabber.WriteOffer] Error: %s\n", err)
 	}
 }

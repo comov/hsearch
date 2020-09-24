@@ -26,11 +26,11 @@ const (
 
 func main() {
 	cnf, err := configs.GetConf()
-	ctx := context.Background()
 	if err != nil {
 		log.Fatalln("[main.GetConf] error: ", err)
 	}
 
+	ctx := context.Background()
 	db, err := storage.New(ctx, cnf)
 	if err != nil {
 		log.Fatalln("[main.storage.New] error: ", err)

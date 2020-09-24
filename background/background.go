@@ -25,6 +25,7 @@ type (
 
 	Bot interface {
 		SendOffer(ctx context.Context, offer *structs.Offer, chatId int64) error
+		SendError(where string, err error, chatId int64)
 	}
 
 	Site interface {

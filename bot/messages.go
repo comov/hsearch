@@ -10,10 +10,9 @@ import (
 )
 
 const helpMessage = `
-Это бот для поиска квартир. Основное его преимущество это фильтрация по просмотренным квартирам.
+Поиска квартир для долгосрочной аренды по Кыргызстану. Тут есть фильтры и нет дубликатов при просмотре объявлений
 
 Доступные команды:
-/start - запустить бота, если он был остановлен
 /help - справка по командам
 /settings - настройки и фильтры бота
 /feedback - отставить гневное сообщение автору 😐
@@ -21,10 +20,12 @@ const helpMessage = `
 
 const feedbackText = `Бот будет ждать от тебя сообщения примерно минут 5, после чего отправленный текст не будет считать фидбэком`
 const wrongAnswerText = `Ты что-то не так ввел. Посмотри пример и попробуй еще раз. Осталось попыток: %d`
+const somethingWrong = "Что-то пошло не так..."
 
 func DefaultMessage(offer *structs.Offer) string {
 	var message strings.Builder
-	message.WriteString(offer.Topic)
+	message.WriteString(fmt.Sprintf("[`[%s]`%s](%s)", offer.Topic, offer.Topic, offer.Url))
+	//message.WriteString(offer.Topic)
 	message.WriteString("\n\n")
 
 	if offer.FullPrice != "" {
@@ -69,8 +70,8 @@ func DefaultMessage(offer *structs.Offer) string {
 		message.WriteString("\n")
 	}
 
-	message.Grow(len("Ссылка: ") + len(offer.Url) + len("\n"))
-	message.WriteString("Ссылка: ")
+	message.Grow(len("\n") + len(offer.Url) + len("\n"))
+	message.WriteString("\n")
 	message.WriteString(offer.Url)
 	message.WriteString("\n")
 	return message.String()

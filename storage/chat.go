@@ -24,6 +24,12 @@ func (c *Connector) CreateChat(ctx context.Context, id int64, username, title, c
 	return err
 }
 
+// DeleteChat - creates a chat room and sets the default settings.
+func (c *Connector) DeleteChat(ctx context.Context, id int64) error {
+	_, err := c.Conn.Exec(ctx, "INSERT INTO chat (id, enable) VALUES ($1, $2)", id, false)
+	return err
+}
+
 // ReadChat - return chat with user or with group if exist or return error.
 func (c *Connector) ReadChat(ctx context.Context, id int64) (*structs.Chat, error) {
 	chat := &structs.Chat{}

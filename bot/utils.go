@@ -72,9 +72,10 @@ func buildParams(config tgbotapi.MediaGroupConfig) (url.Values, error) {
 func (b *Bot) SendOffer(ctx context.Context, offer *structs.Offer, chatId int64) error {
 	message := tgbotapi.NewMessage(chatId, DefaultMessage(offer))
 	message.DisableWebPagePreview = true
+	message.ParseMode = tgbotapi.ModeMarkdown
 	message.ReplyMarkup = getKeyboard(offer)
 
-	send, err := b.bot.Send(message)
+	send, err := b.Send(message)
 	if err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func (b *Bot) wrongAnswer(ctx context.Context, message *tgbotapi.Message, a answ
 	}
 
 	newMessage := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf(wrongAnswerText, a.maxErrors))
-	m, err := b.bot.Send(newMessage)
+	m, err := b.Send(newMessage)
 	if err != nil {
 		b.waitAnswers[message.Chat.ID] = a
 		log.Println("[wrongAnswer.Send] error:", err)
@@ -114,7 +115,7 @@ func (b *Bot) clearRetry(ctx context.Context, chat *tgbotapi.Chat, lastMsgId int
 	}
 	for _, id := range a.messages {
 		deleteMessage := tgbotapi.NewDeleteMessage(chat.ID, id)
-		_, err := b.bot.Send(deleteMessage)
+		_, err := b.Send(deleteMessage)
 		if err != nil {
 			log.Println("[clearRetry.Send] error:", err)
 		}

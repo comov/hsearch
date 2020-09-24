@@ -2,9 +2,10 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/comov/hsearch/structs"
+
+	"github.com/jackc/pgx/v4"
 )
 
 // StopSearch - disable receive message about new offers.
@@ -16,7 +17,7 @@ func (c *Connector) StopSearch(ctx context.Context, id int64) error {
 
 	affect := resp.RowsAffected()
 	if affect == 0 {
-		return sql.ErrNoRows
+		return pgx.ErrNoRows
 	}
 
 	return nil
@@ -27,7 +28,7 @@ func (c *Connector) StopSearch(ctx context.Context, id int64) error {
 func (c *Connector) StartSearch(ctx context.Context, id int64, username, title, cType string) error {
 	chat, err := c.ReadChat(ctx, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return c.CreateChat(ctx, id, username, title, cType)
 		}
 		return err

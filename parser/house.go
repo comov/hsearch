@@ -68,7 +68,7 @@ func (s *House) ParseNewOffer(href string, exId uint64, doc *goquery.Document) *
 		Price:      price,
 		Currency:   currency,
 		Phone:      s.parsePhone(doc),
-		Area:       s.infoContains(doc, "Площадь"),
+		Area:       s.area(exId, doc),
 		Floor:      s.floor(doc),
 		District:   s.district(doc),
 		City:       "Бишкек", //city,
@@ -147,4 +147,18 @@ func (s *House) parseImages(doc *goquery.Document) []string {
 		}
 	})
 	return images
+}
+
+func (s *House) area(exId uint64, doc *goquery.Document) string {
+	areaString := s.infoContains(doc, "Площадь")
+	if areaString != "" {
+		r := intRegex.FindAllString(areaString, -1)
+		if len(r) >= 1 {
+			area, err := strconv.Atoi(r[0])
+			if err == nil && area > 10 && area < 299 {
+				return fmt.Sprintf("%d м2", area)
+			}
+		}
+	}
+	return ""
 }

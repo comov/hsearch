@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+
 	"github.com/comov/hsearch/structs"
 )
 
@@ -22,6 +24,14 @@ func (m *Manager) matcher(ctx context.Context) {
 
 			chats, err := m.st.ReadChatsForMatching(ctx, 1)
 			if err != nil {
+				sentry.AddBreadcrumb(&sentry.Breadcrumb{
+					Category: "matcher.ReadChatsForMatching",
+					Data: map[string]interface{}{
+						"sleep": sleep,
+						"chats": chats,
+					},
+				})
+				sentry.CaptureException(err)
 				log.Printf("[matcher.ReadChatForOrder] Error: %s\n", err)
 				return
 			}
@@ -38,6 +48,13 @@ func (m *Manager) matching(ctx context.Context, chat *structs.Chat) {
 
 	offer, err := m.st.ReadNextOffer(ctx, chat)
 	if err != nil {
+		sentry.AddBreadcrumb(&sentry.Breadcrumb{
+			Category: "matcher.ReadNextOffer",
+			Data: map[string]interface{}{
+				"chat.id": chat.Id,
+				"chat.title": chat.Title,
+			},
+		})
 		log.Printf("[matcher] Can't read offer for %s with an error: %s\n", chat.Title, err)
 		return
 	}
@@ -49,6 +66,18 @@ func (m *Manager) matching(ctx context.Context, chat *structs.Chat) {
 
 	err = m.bot.SendOffer(ctx, offer, chat.Id)
 	if err != nil {
+		sentry.AddBreadcrumb(&sentry.Breadcrumb{
+			Category: "matcher",
+			Data: map[string]interface{}{
+				"method": "SendOffer",
+				"offer.id": offer.Id,
+				"offer.url": offer.Url,
+				"offer.topic": offer.Topic,
+				"chat.id": chat.Id,
+				"chat.title": chat.Title,
+			},
+		})
+		sentry.CaptureException(err)
 		log.Printf("[matcher] Can't send message for `%s` with an error: %s\n", chat.Title, err)
 		return
 	}
