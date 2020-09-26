@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/comov/hsearch/structs"
-
 	"github.com/PuerkitoBio/goquery"
+
+	"github.com/comov/hsearch/structs"
 )
 
 type Lalafo struct {

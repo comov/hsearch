@@ -48,6 +48,19 @@ make dockerrun
 
 For more information, take a look at Makefile
 
+## we use sentry
+
+[Sentry](https://sentry.io) is a cool bug tracker! But in GoLang I don't know how it is used. So I decided,
+ that errors will be caught in the top-level of the trimmings. Hsearch has the following top-level components :
+ 
+ - grabber - the need to fill the database with new data
+ - parser - we got new data from HTML, so we need the html parser 
+ - matcher - agent to find new data for each user and send him a message    
+ - garbage - all data can be older, so we need to clean up him
+ - bot - telegram interface for communication with hsearch
+ - api (beta) - HTTP Api for the WEB and Mobile
+
+
 ## rsyslog setting
 ```shell script
 root@docker-host:~# cat /etc/rsyslog.d/30-docker.conf

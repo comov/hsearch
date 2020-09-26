@@ -1,16 +1,16 @@
 package parser
 
 import (
-	"context"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
-	"github.com/comov/hsearch/structs"
 	"log"
 	"net/http"
 	"net/url"
 	"regexp"
 	"sync"
-	"time"
+
+	"github.com/PuerkitoBio/goquery"
+
+	"github.com/comov/hsearch/structs"
 )
 
 type (
@@ -66,66 +66,34 @@ func FindOffersLinksOnSite(site Site) (map[uint64]string, error) {
 	return offers, nil
 }
 
-type loadOffers struct {
-	offers []*structs.Offer
-	add    chan *structs.Offer
-	wg     sync.WaitGroup
-	ctx    context.Context
-}
-
-func (l *loadOffers) loadOffer(site Site, id uint64, href string) {
-	defer l.wg.Done()
-
-	doc, err := GetDocumentByUrl(href)
-	if err != nil {
-		log.Printf("Can't load offer %s with an error %s\f", href, err)
-		return
-	}
-
-	offer := site.ParseNewOffer(href, id, doc)
-	if offer != nil {
-		l.add <- offer
-	}
-}
-
-func (l *loadOffers) addOffer() {
-	for {
-		select {
-		case offer := <-l.add:
-			l.offers = append(l.offers, offer)
-		case <-l.ctx.Done():
-			return
-		}
-	}
-}
-
-// LoadOffersDetail - выгружает и парсит offers по href
+// LoadOffersDetail - downloads the offers and provides a ready list from the offers structures
 func LoadOffersDetail(offersList map[uint64]string, site Site) []*structs.Offer {
-	// fixme: это ёбаный костыль!
-	lo := loadOffers{
-		offers: make([]*structs.Offer, 0),
-		add:    make(chan *structs.Offer, len(offersList)),
-	}
+	var offers []*structs.Offer
+	var wg sync.WaitGroup
 
-	ctx, cancel := context.WithCancel(context.Background())
-	lo.ctx = ctx
-	defer cancel()
-	defer close(lo.add)
-
-	go lo.addOffer()
-
+	wg.Add(len(offersList))
 	for id, href := range offersList {
-		lo.wg.Add(1)
-		go lo.loadOffer(site, id, href)
+		go func(site Site, id uint64, href string) {
+			defer wg.Done()
+
+			doc, err := GetDocumentByUrl(href)
+			if err != nil {
+				log.Printf("Can't load offer %s with an error %s\f", href, err)
+				return
+			}
+
+			offer := site.ParseNewOffer(href, id, doc)
+			if offer != nil {
+				offers = append(offers, offer)
+			}
+		}(site, id, href)
 	}
 
-	lo.wg.Wait()
-	time.Sleep(time.Second * 1) // fixme: особенно это. Типа ожидать чтоб добавить в список последний offer
-	return lo.offers
+	wg.Wait()
+	return offers
 }
 
-// GetDocumentByUrl - получает страницу по http, читает и возвращет объект
-// goquery.Document для парсинга
+// GetDocumentByUrl - receives the page by http, reads and returns the goquery.Document object
 func GetDocumentByUrl(url string) (*goquery.Document, error) {
 	res, err := http.Get(url)
 	if err != nil {

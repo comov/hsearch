@@ -25,8 +25,9 @@ func (m *Manager) matcher(ctx context.Context) {
 			chats, err := m.st.ReadChatsForMatching(ctx, 1)
 			if err != nil {
 				sentry.AddBreadcrumb(&sentry.Breadcrumb{
-					Category: "matcher.ReadChatsForMatching",
+					Category: "matcher",
 					Data: map[string]interface{}{
+						"method": "ReadChatsForMatching",
 						"sleep": sleep,
 						"chats": chats,
 					},
@@ -49,8 +50,9 @@ func (m *Manager) matching(ctx context.Context, chat *structs.Chat) {
 	offer, err := m.st.ReadNextOffer(ctx, chat)
 	if err != nil {
 		sentry.AddBreadcrumb(&sentry.Breadcrumb{
-			Category: "matcher.ReadNextOffer",
+			Category: "matcher",
 			Data: map[string]interface{}{
+				"method": "ReadNextOffer",
 				"chat.id": chat.Id,
 				"chat.title": chat.Title,
 			},

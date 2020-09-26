@@ -15,8 +15,9 @@ func (m *Manager) garbage(ctx context.Context) {
 	err := m.st.CleanExpiredOffers(ctx, expireDate)
 	if err != nil {
 		sentry.AddBreadcrumb(&sentry.Breadcrumb{
-			Category: "garbage.CleanExpiredOffers",
+			Category: "garbage",
 			Data: map[string]interface{}{
+				"method": "CleanExpiredOffers",
 				"expireDate": expireDate,
 			},
 		})
@@ -27,8 +28,9 @@ func (m *Manager) garbage(ctx context.Context) {
 	err = m.st.CleanExpiredImages(ctx, expireDate)
 	if err != nil {
 		sentry.AddBreadcrumb(&sentry.Breadcrumb{
-			Category: "garbage.CleanExpiredImages",
+			Category: "garbage",
 			Data: map[string]interface{}{
+				"method": "CleanExpiredImages",
 				"expireDate": expireDate,
 			},
 		})
@@ -39,8 +41,9 @@ func (m *Manager) garbage(ctx context.Context) {
 	err = m.st.CleanExpiredAnswers(ctx, expireDate)
 	if err != nil {
 		sentry.AddBreadcrumb(&sentry.Breadcrumb{
-			Category: "garbage.CleanExpiredAnswers",
+			Category: "garbage",
 			Data: map[string]interface{}{
+				"method": "CleanExpiredAnswers",
 				"expireDate": expireDate,
 			},
 		})
@@ -51,8 +54,9 @@ func (m *Manager) garbage(ctx context.Context) {
 	err = m.st.CleanExpiredTGMessages(ctx, expireDate)
 	if err != nil {
 		sentry.AddBreadcrumb(&sentry.Breadcrumb{
-			Category: "garbage.CleanExpiredTGMessages",
+			Category: "garbage",
 			Data: map[string]interface{}{
+				"method": "CleanExpiredTGMessages",
 				"expireDate": expireDate,
 			},
 		})

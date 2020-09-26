@@ -24,8 +24,7 @@ const somethingWrong = "Что-то пошло не так..."
 
 func DefaultMessage(offer *structs.Offer) string {
 	var message strings.Builder
-	message.WriteString(fmt.Sprintf("[`[%s]`%s](%s)", offer.Topic, offer.Topic, offer.Url))
-	//message.WriteString(offer.Topic)
+	message.WriteString(offer.Topic)
 	message.WriteString("\n\n")
 
 	if offer.FullPrice != "" {

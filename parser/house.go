@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+
 	"github.com/comov/hsearch/structs"
 )
 
@@ -68,7 +69,7 @@ func (s *House) ParseNewOffer(href string, exId uint64, doc *goquery.Document) *
 		Price:      price,
 		Currency:   currency,
 		Phone:      s.parsePhone(doc),
-		Area:       s.area(exId, doc),
+		Area:       s.area(doc),
 		Floor:      s.floor(doc),
 		District:   s.district(doc),
 		City:       "Бишкек", //city,
@@ -149,7 +150,7 @@ func (s *House) parseImages(doc *goquery.Document) []string {
 	return images
 }
 
-func (s *House) area(exId uint64, doc *goquery.Document) string {
+func (s *House) area(doc *goquery.Document) string {
 	areaString := s.infoContains(doc, "Площадь")
 	if areaString != "" {
 		r := intRegex.FindAllString(areaString, -1)
