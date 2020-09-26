@@ -4,6 +4,7 @@ backcall==0.2.0
 decorator==4.4.2
 Django==3.1.1
 django-environ==0.4.5
+django-recaptcha==2.0.6
 django-unixtimestampfield==0.4.0
 ipython==7.16.1
 ipython-genutils==0.2.0

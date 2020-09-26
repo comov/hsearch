@@ -1,13 +1,37 @@
 from django.contrib import admin
+from django.contrib.admin.sites import site as default_site
+from django.contrib.auth.admin import UserAdmin, GroupAdmin
+from django.contrib.auth.models import Group, User
 from django.db import models
 from django.utils.safestring import SafeString
 from hsearch.admin_inlines import FeedbackInline, AnswerInline, ImageInline
+from hsearch.forms import AdminAuthenticationForm
 from hsearch.models import Chat, Offer, Answer, Feedback, Image, TgMessage
 
 
 def _yes_no_img(var):
     res = ('yes', 'True') if var else ('no', 'False')
     return '<img src="/static/admin/img/icon-%s.svg" alt="%s">' % res
+
+
+class AdminSite(admin.AdminSite):
+    login_form = AdminAuthenticationForm
+    login_template = 'admin/login.html'
+
+    def _registry_getter(self):
+        return default_site._registry
+
+    def _registry_setter(self, value):
+        default_site._registry = value
+
+    _registry = property(_registry_getter, _registry_setter)
+
+
+site = AdminSite()
+admin.site = site
+
+admin.site.register(Group, GroupAdmin)
+admin.site.register(User, UserAdmin)
 
 
 @admin.register(Chat)
