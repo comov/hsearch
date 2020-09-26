@@ -2,29 +2,26 @@ from pathlib import Path
 
 import environ
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# BASE
+# ----------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ENVIRONMENT
+# ----------------------------------------------------------------------------
 env = environ.Env(
-    # set casting, default value
-    DEBUG=(bool, False)
+    DJANGO_DEBUG=(bool, False),
 )
 environ.Env.read_env(str(BASE_DIR.joinpath('../.env')))
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
+DEBUG = env.bool('DJANGO_DEBUG', default=False)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('DJANGO_SECRET_KEY', default='123')
-LOGOUT_REDIRECT_URL = '/'
+# SECURITY
+# ----------------------------------------------------------------------------
+SECRET_KEY = env('DJANGO_SECRET_KEY', default='123') if DEBUG else env('DJANGO_SECRET_KEY')
+ALLOWED_HOSTS = ['*'] if DEBUG else env.list('DJANGO_ALLOWED_HOSTS')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=False)
-
-ALLOWED_HOSTS = ['*']
-
-# Application definition
-
+# APPLICATIONS
+# ----------------------------------------------------------------------------
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -37,6 +34,8 @@ INSTALLED_APPS = [
     'hsearch',
 ]
 
+# MIDDLEWARE
+# ----------------------------------------------------------------------------
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -47,8 +46,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# URLS
+# ----------------------------------------------------------------------------
 ROOT_URLCONF = 'config.urls'
+LOGOUT_REDIRECT_URL = '/'
 
+# TEMPLATES
+# ----------------------------------------------------------------------------
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -65,25 +69,25 @@ TEMPLATES = [
     },
 ]
 
+# WSGI
+# ----------------------------------------------------------------------------
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/3.1/ref/settings/#databases
-
+# DATABASES
+# ----------------------------------------------------------------------------
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'hsearch',
         'USER': 'hsearch',
-        'PASSWORD': env('POSTGRES_PASSWORD', default='hsearch'),
-        'HOST': env('POSTGRES_HOST', default='localhost'),
-        'PORT': env('POSTGRES_PORT', default='65432'),
+        'PASSWORD': env('DJANGO_DB_PASSWORD', default='hsearch'),
+        'HOST': env('DJANGO_DB_HOST', default='localhost'),
+        'PORT': env.int('DJANGO_DB_PORT', default=5432),
     },
 }
 
-# Password validation
-# https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators
-
+# AUTHENTICATION
+# ----------------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -99,22 +103,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
-# https://docs.djangoproject.com/en/3.1/topics/i18n/
-
+# LOCALIZATION
+# ----------------------------------------------------------------------------
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/3.1/howto/static-files/
-
+# STATIC
+# ----------------------------------------------------------------------------
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'static'
 

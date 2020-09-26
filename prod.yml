@@ -2,13 +2,28 @@ version: '3.3'
 
 services:
   app:
-    image: comov/hsearch:v1.2.0
+    image: comov/hsearch:v2.1.0
     container_name: hsearch
     restart: always
     env_file:
       - .env
     networks:
       - hsearch
+    logging:
+      driver: syslog
+      options:
+        tag: docker/hsearch
+
+  admin:
+    image: comov/hsearch:admin-v2.1.0
+    container_name: hsearch_admin
+    restart: always
+    env_file:
+      - .env
+    networks:
+      - hsearch
+    ports:
+      - 80:8080
     logging:
       driver: syslog
       options:

@@ -12,7 +12,7 @@ run:
 	go run cmd/hsearch/*.go
 
 dockerbuild:
-	docker build -t comov/hsearch:latest .
+	RELEASE=development docker build -t comov/hsearch:latest .
 
 dockerrun: dockerbuild
-	docker run -d hsearch
+	docker run -d comov/hsearch:latest

@@ -9,20 +9,17 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-var Release string
-
 // Config - the structure that contains all the customizable application
 //  configurations
 type Config struct {
 	Release         string
-	SentryDSN       string `env:"SENTRY_DSN"`
 	ParserFrequency string `env:"PARSER_FREQUENCY"`
 	OrderRelevance  string `env:"ORDER_RELEVANCE"`
 	TelegramToken   string `env:"T_TOKEN"`
 	TelegramChatId  int64  `env:"T_CHAT_ID"`
-	PgPassword      string `env:"POSTGRES_PASSWORD"`
-	PgHost          string `env:"POSTGRES_HOST"`
-	PgPort          int32  `env:"POSTGRES_PORT"`
+	PgPassword      string `env:"GO_DB_PASSWORD"`
+	PgHost          string `env:"GO_DB_HOST"`
+	PgPort          int32  `env:"GO_DB_PORT"`
 
 	FrequencyTime time.Duration
 	RelevanceTime time.Duration
@@ -33,12 +30,7 @@ type Config struct {
 
 // GetConf - returns the application configuration
 func GetConf() (*Config, error) {
-	if Release == "" {
-		Release = "local"
-	}
-
 	cfg := &Config{
-		Release:         Release,
 		ParserFrequency: "1m",
 		OrderRelevance:  "2m",
 		PgPassword:      "hsearch",
@@ -53,9 +45,7 @@ func GetConf() (*Config, error) {
 	}
 
 	err = sentry.Init(sentry.ClientOptions{
-		Dsn:        cfg.SentryDSN,
-		SampleRate: 0.5,
-		Release: cfg.Release,
+		SampleRate:  0.5,
 	})
 
 	if err != nil {

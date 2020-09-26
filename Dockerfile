@@ -5,8 +5,8 @@ COPY . /srv
 
 RUN set -x \
     && cd /srv/ \
-    && go build -mod vendor -o /go/bin/hsearch cmd/hsearch/*.go \
-    && go build -mod vendor -o /go/bin/newsletter cmd/newsletter/*.go
+    && go build -ldflags="-X 'main.Release=${RELEASE}'" -mod vendor -o /go/bin/hsearch cmd/hsearch/*.go \
+    && go build -ldflags="-X 'main.Release=${RELEASE}'" -mod vendor -o /go/bin/newsletter cmd/newsletter/*.go
 
 
 FROM alpine:3.11.5

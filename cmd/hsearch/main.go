@@ -24,11 +24,15 @@ const (
 		" exist. Support\n\t the flag -dir for the directory of migrations\n"
 )
 
+var Release string
+
 func main() {
 	cnf, err := configs.GetConf()
 	if err != nil {
 		log.Fatalln("[main.GetConf] error: ", err)
 	}
+	cnf.Release = Release
+	fmt.Printf("Release: %s\n", cnf.Release)
 
 	ctx := context.Background()
 	db, err := storage.New(ctx, cnf)
