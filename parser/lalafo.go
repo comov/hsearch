@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/comov/hsearch/structs"
-
 	"github.com/PuerkitoBio/goquery"
+
+	"github.com/comov/hsearch/structs"
 )
 
 type Lalafo struct {
@@ -59,7 +59,7 @@ func (s *Lalafo) IdFromHref(href string) (uint64, error) {
 
 // ParseNewOffer - parse html and fills the offer with valid values
 func (s *Lalafo) ParseNewOffer(href string, exId uint64, doc *goquery.Document) *structs.Offer {
-	offer := s.findAndParseJsonJsonOffer(doc)
+	offer := s.findAndParseJsonOffer(doc)
 
 	isNotBlank := offer.City != ""
 	isNotBishkek := strings.ToLower(offer.City) != "бишкек"
@@ -71,7 +71,7 @@ func (s *Lalafo) ParseNewOffer(href string, exId uint64, doc *goquery.Document) 
 		Id:         exId,
 		Site:       s.Site,
 		Url:        href,
-		Topic:      offer.Title,
+		Topic:      strings.ReplaceAll(offer.Title, "Сдается квартира: ", ""),
 		FullPrice:  offer.fullPrice(),
 		Price:      offer.Price,
 		Currency:   strings.ToLower(offer.Currency),
@@ -99,7 +99,7 @@ type JsonStruct struct {
 }
 
 type Item struct {
-	Item Offer `json:"item"`
+	Item LalafoOffer `json:"item"`
 }
 
 const (
@@ -110,7 +110,7 @@ const (
 	districtId    = 357
 )
 
-type Offer struct {
+type LalafoOffer struct {
 	Mobile       string `json:"mobile"`
 	IsNegotiable bool   `json:"is_negotiable"`
 	Params       []struct {
@@ -130,7 +130,7 @@ type Offer struct {
 	Description string `json:"description"`
 }
 
-func (o *Offer) fullPrice() string {
+func (o *LalafoOffer) fullPrice() string {
 	if o.IsNegotiable {
 		return "Договорная"
 	}
@@ -146,38 +146,52 @@ func (o *Offer) fullPrice() string {
 	return b.String()
 }
 
-func (o *Offer) rooms() string {
+func (o *LalafoOffer) rooms() string {
 	r := intRegex.FindAllString(o.ParamsMap[roomsId], -1)
 	if len(r) == 0 {
-		return ""
+		return "0"
 	}
 	return r[0]
 }
 
-func (o *Offer) area() string {
-	return fmt.Sprintf("%s м2", o.ParamsMap[areaId])
-}
-
-func (o *Offer) floor() string {
-	t, ok := o.ParamsMap[floorTotalId]
-	if ok && t != "" {
-		return fmt.Sprintf("%s из %s", o.ParamsMap[floorNumberId], t)
+func (o *LalafoOffer) area() string {
+	areaString, ok := o.ParamsMap[areaId]
+	if ok {
+		r := intRegex.FindAllString(areaString, -1)
+		if len(r) >= 1 {
+			area, err := strconv.Atoi(r[0])
+			if err == nil && area > 10 && area < 299 {
+				return fmt.Sprintf("%d м2", area)
+			}
+		}
 	}
-	return o.ParamsMap[floorNumberId]
+	return ""
 }
 
-func (o *Offer) district() string {
+func (o *LalafoOffer) floor() string {
+	number, ok := o.ParamsMap[floorNumberId]
+	if ok && number != "" {
+		total, ok := o.ParamsMap[floorTotalId]
+		if ok && total != "" {
+			return fmt.Sprintf("%s из %s", number, total)
+		}
+		return number
+	}
+	return ""
+}
+
+func (o *LalafoOffer) district() string {
 	return o.ParamsMap[districtId]
 }
 
-func (o *Offer) paramsToMap() {
+func (o *LalafoOffer) paramsToMap() {
 	o.ParamsMap = make(map[int]string)
 	for _, param := range o.Params {
 		o.ParamsMap[param.ID] = strings.TrimSpace(fmt.Sprintf("%v", param.Value))
 	}
 }
 
-func (o *Offer) imagesAsString() []string {
+func (o *LalafoOffer) imagesAsString() []string {
 	images := make([]string, 0)
 	for _, img := range o.Images {
 		images = append(images, img.OriginalURL)
@@ -185,13 +199,13 @@ func (o *Offer) imagesAsString() []string {
 	return images
 }
 
-func (s *Lalafo) findAndParseJsonJsonOffer(doc *goquery.Document) Offer {
+func (s *Lalafo) findAndParseJsonOffer(doc *goquery.Document) LalafoOffer {
 	foundJson := JsonStruct{}
 
 	doc.Find("#__NEXT_DATA__").Each(func(i int, s *goquery.Selection) {
 		err := json.Unmarshal([]byte(s.Text()), &foundJson)
 		if err != nil {
-			log.Printf("[findAndParseJsonJsonOffer] fail with an error: %s\n", err)
+			log.Printf("[findAndParseJsonOffer] fail with an error: %s\n", err)
 		}
 	})
 

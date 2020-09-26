@@ -11,7 +11,7 @@ import (
 
 type (
 	Storage interface {
-		WriteOffers(ctx context.Context, offer []*structs.Offer) (int, error)
+		WriteOffers(ctx context.Context, offer []*structs.Offer) error
 		ReadChatsForMatching(ctx context.Context, enable int) ([]*structs.Chat, error)
 		ReadNextOffer(ctx context.Context, chat *structs.Chat) (*structs.Offer, error)
 		CleanFromExistOrders(ctx context.Context, offers map[uint64]string, siteName string) error
@@ -25,6 +25,7 @@ type (
 
 	Bot interface {
 		SendOffer(ctx context.Context, offer *structs.Offer, chatId int64) error
+		SendError(where string, err error, chatId int64)
 	}
 
 	Site interface {

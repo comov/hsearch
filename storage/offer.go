@@ -2,21 +2,18 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"github.com/jackc/pgx/v4"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/comov/hsearch/structs"
+
+	"github.com/jackc/pgx/v4"
 )
 
-// WriteOffer - records Offer in the database with the pictures and returns Id
-//  to the structure.
-func (c *Connector) WriteOffer(ctx context.Context, offer *structs.Offer) error {
-	_, err := c.Conn.Exec(ctx, `INSERT INTO offer (
+func addBatchQuery(batch *pgx.Batch, offer *structs.Offer) {
+	batch.Queue(`INSERT INTO offer (
 		id,
 		created,
 		site,
@@ -52,31 +49,22 @@ func (c *Connector) WriteOffer(ctx context.Context, offer *structs.Offer) error 
 		offer.Body,
 		offer.Images,
 	)
-	if err != nil && !regexContain.MatchString(err.Error()) {
-		return err
-	}
-	return c.writeImages(ctx, strconv.Itoa(int(offer.Id)), offer.ImagesList)
 }
 
 // WriteOffers - writes bulk from offers along with pictures to the fd.
-func (c *Connector) WriteOffers(ctx context.Context, offers []*structs.Offer) (int, error) {
-	newOffersCount := 0
-	// TODO: как видно, сейчас это сделано через простой цикл, но лучше
-	//  предоставить это самому хранилищу. Сделать bulk insert, затем запросить
-	//  Id по ExtId и записать картины. Не было времени сделать это сразу
+func (c *Connector) WriteOffers(ctx context.Context, offers []*structs.Offer) error {
+	batch := &pgx.Batch{}
 	for i := range offers {
-		offer := offers[i]
-		err := c.WriteOffer(ctx, offer)
-		if err != nil {
-			return newOffersCount, err
-		}
-
-		newOffersCount += 1
+		addBatchQuery(batch, offers[i])
 	}
-	return newOffersCount, nil
+	_, err := c.Conn.SendBatch(ctx, batch).Exec()
+	if err != nil && !strings.Contains(err.Error(), "no result") {
+		return err
+	}
+	return nil
 }
 
-// writeImages - так как картинки храняться в отдельной таблице, то пишем мы их
+// writeImages - так как картинки хранятся в отдельной таблице, то пишем мы их
 // отдельно
 func (c *Connector) writeImages(ctx context.Context, offerId string, images []string) error {
 	if len(images) <= 0 {
@@ -191,7 +179,7 @@ func (c *Connector) Dislike(ctx context.Context, msgId int, chatId int64) ([]int
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return msgIds, nil
 		}
 		return msgIds, err
@@ -220,6 +208,7 @@ func (c *Connector) ReadNextOffer(ctx context.Context, chat *structs.Chat) (*str
 	query.WriteString(`
 	SELECT
 		of.id,
+		of.site,
 		of.url,
 		of.topic,
 		of.full_price,
@@ -261,6 +250,7 @@ func (c *Connector) ReadNextOffer(ctx context.Context, chat *structs.Chat) (*str
 		now.Add(-c.relevanceTime).Unix(),
 	).Scan(
 		&offer.Id,
+		&offer.Site,
 		&offer.Url,
 		&offer.Topic,
 		&offer.FullPrice,
@@ -350,7 +340,7 @@ func (c *Connector) ReadOfferDescription(ctx context.Context, msgId int, chatId 
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return offerId, "Предложение не найдено, возможно было удалено", nil
 		}
 		return offerId, "", err
@@ -377,7 +367,7 @@ func (c *Connector) ReadOfferImages(ctx context.Context, msgId int, chatId int64
 
 	rows, err := c.Conn.Query(ctx, `SELECT path FROM image im WHERE im.offer_id = $1;`, offerId)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return offerId, images, nil
 		}
 		return offerId, images, err

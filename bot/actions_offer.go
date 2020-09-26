@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/comov/hsearch/structs"
@@ -12,7 +13,6 @@ import (
 var (
 	dislikeButton     = tgbotapi.NewInlineKeyboardButtonData("Точно нет!", "dislike")
 	descriptionButton = tgbotapi.NewInlineKeyboardButtonData("Описание", "description")
-	photoButton       = tgbotapi.NewInlineKeyboardButtonData("Фото", "photo")
 )
 
 func getKeyboard(offer *structs.Offer) tgbotapi.InlineKeyboardMarkup {
@@ -24,7 +24,7 @@ func getKeyboard(offer *structs.Offer) tgbotapi.InlineKeyboardMarkup {
 	}
 
 	if offer.Images != 0 {
-		row2 = append(row2, photoButton)
+		row2 = append(row2, tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("Фото (%d)", offer.Images), "photo"))
 	}
 
 	if len(row2) == 0 {
@@ -79,7 +79,7 @@ func (b *Bot) description(ctx context.Context, query *tgbotapi.CallbackQuery) {
 	message := tgbotapi.NewMessage(query.Message.Chat.ID, body)
 	message.ReplyToMessageID = query.Message.MessageID
 
-	send, err := b.bot.Send(message)
+	send, err := b.Send(message)
 	if err != nil {
 		log.Println("[description.Send] error:", err)
 	}
@@ -106,7 +106,7 @@ func (b *Bot) photo(ctx context.Context, query *tgbotapi.CallbackQuery) {
 
 	waitMessage := tgbotapi.Message{}
 	if len(images) != 0 {
-		waitMessage, err = b.bot.Send(tgbotapi.NewMessage(query.Message.Chat.ID, WaitPhotoMessage(len(images))))
+		waitMessage, err = b.Send(tgbotapi.NewMessage(query.Message.Chat.ID, WaitPhotoMessage(len(images))))
 		if err != nil {
 			log.Println("[photo.Send] error:", err)
 		}

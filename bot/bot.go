@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"github.com/getsentry/sentry-go"
 	"log"
 	"sync"
 	"time"
@@ -23,6 +24,7 @@ type (
 
 		ReadChat(ctx context.Context, id int64) (*structs.Chat, error)
 		CreateChat(ctx context.Context, id int64, username, title, cType string) error
+		DeleteChat(ctx context.Context, id int64) error
 		UpdateSettings(ctx context.Context, chat *structs.Chat) error
 	}
 
@@ -131,6 +133,8 @@ func (b *Bot) messageHandler(ctx context.Context, update tgbotapi.Update) {
 		switch update.Message.Command() {
 		case "start":
 			msg = b.start(ctx, update.Message)
+		case "stop":
+			msg = b.stop(ctx, update.Message)
 		case "help":
 			msg = b.help(update.Message)
 		case "settings":
@@ -143,7 +147,7 @@ func (b *Bot) messageHandler(ctx context.Context, update tgbotapi.Update) {
 		}
 
 		message := tgbotapi.NewMessage(update.Message.Chat.ID, msg)
-		_, err := b.bot.Send(message)
+		_, err := b.Send(message)
 		if err != nil {
 			log.Println("[bot.Send] error: ", err)
 		}
@@ -167,5 +171,14 @@ func (b *Bot) answerListener(ctx context.Context, message *tgbotapi.Message) {
 		}
 
 		b.clearRetry(ctx, message.Chat, -1)
+	}
+}
+
+func (b *Bot) SendError(where string, err error, chatId int64) {
+	log.Println("[", where, "] error:", err)
+	_, err = b.Send(tgbotapi.NewMessage(chatId, somethingWrong))
+	if err != nil {
+		sentry.CaptureException(err)
+		log.Println("[", where, ".Send.error] error:", err)
 	}
 }

@@ -33,6 +33,10 @@ type Config struct {
 
 // GetConf - returns the application configuration
 func GetConf() (*Config, error) {
+	if Release == "" {
+		Release = "local"
+	}
+
 	cfg := &Config{
 		Release:         Release,
 		ParserFrequency: "1m",
@@ -40,7 +44,7 @@ func GetConf() (*Config, error) {
 		PgPassword:      "hsearch",
 		PgHost:          "localhost",
 		PgPort:          5432,
-		ExpireDays:      14,
+		ExpireDays:      7,
 	}
 
 	err := env.Parse(cfg)
@@ -51,6 +55,7 @@ func GetConf() (*Config, error) {
 	err = sentry.Init(sentry.ClientOptions{
 		Dsn:        cfg.SentryDSN,
 		SampleRate: 0.5,
+		Release: cfg.Release,
 	})
 
 	if err != nil {
