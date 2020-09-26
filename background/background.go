@@ -11,7 +11,7 @@ import (
 
 type (
 	Storage interface {
-		WriteOffers(ctx context.Context, offer []*structs.Offer) error
+		WriteOffers(ctx context.Context, offer []*structs.Offer) (int, error)
 		ReadChatsForMatching(ctx context.Context, enable int) ([]*structs.Chat, error)
 		ReadNextOffer(ctx context.Context, chat *structs.Chat) (*structs.Offer, error)
 		CleanFromExistOrders(ctx context.Context, offers map[uint64]string, siteName string) error

@@ -35,13 +35,6 @@ func (m *Manager) grabbedOffers(ctx context.Context, site Site) {
 	log.Printf("[grabber] StartGrabber parse `%s`\n", site.Name())
 	offersLinks, err := parser.FindOffersLinksOnSite(site)
 	if err != nil {
-		sentry.AddBreadcrumb(&sentry.Breadcrumb{
-			Category: "grabber",
-			Data: map[string]interface{}{
-				"method": "grabbedOffers.FindOffersLinksOnSite",
-				"site": site.Name(),
-			},
-		})
 		sentry.CaptureException(err)
 		log.Printf("[grabber.FindOffersLinksOnSite] Error: %s\n", err)
 		return
@@ -54,14 +47,6 @@ func (m *Manager) grabbedOffers(ctx context.Context, site Site) {
 
 	err = m.st.CleanFromExistOrders(ctx, offersLinks, site.Name())
 	if err != nil {
-		sentry.AddBreadcrumb(&sentry.Breadcrumb{
-			Category: "grabber",
-			Data: map[string]interface{}{
-				"method": "grabbedOffers.CleanFromExistOrders",
-				"site": site.Name(),
-				"offersLinks": offersLinks,
-			},
-		})
 		sentry.CaptureException(err)
 		log.Printf("[grabber.CleanFromExistOrders] Error: %s\n", err)
 		return
@@ -72,18 +57,9 @@ func (m *Manager) grabbedOffers(ctx context.Context, site Site) {
 	offers := parser.LoadOffersDetail(offersLinks, site)
 	log.Printf("[grabber] Find %d new offers for site `%s`\n", len(offers), site.Name())
 
-	err = m.st.WriteOffers(ctx, offers)
+	_, err = m.st.WriteOffers(ctx, offers)
 	if err != nil {
-		sentry.AddBreadcrumb(&sentry.Breadcrumb{
-			Category: "grabber",
-			Data: map[string]interface{}{
-				"method": "grabbedOffers.WriteOffers",
-				"site": site.Name(),
-				"offersLinks": offersLinks,
-				"offers": offers,
-			},
-		})
 		sentry.CaptureException(err)
-		log.Printf("[grabber.WriteOffer] Site: %s; Error: %s\n", site.Name(), err)
+		log.Printf("[grabber.WriteOffer] Error: %s\n", err)
 	}
 }
