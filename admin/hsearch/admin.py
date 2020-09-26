@@ -29,6 +29,7 @@ class AdminSite(admin.AdminSite):
 
 site = AdminSite()
 admin.site = site
+default_site.enable_nav_sidebar = False
 
 admin.site.register(Group, GroupAdmin)
 admin.site.register(User, UserAdmin)
