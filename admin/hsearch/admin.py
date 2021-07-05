@@ -1,12 +1,13 @@
 from django.contrib import admin
 from django.contrib.admin.sites import site as default_site
-from django.contrib.auth.admin import UserAdmin, GroupAdmin
+from django.contrib.auth.admin import GroupAdmin, UserAdmin
 from django.contrib.auth.models import Group, User
 from django.db import models
 from django.utils.safestring import SafeString
-from hsearch.admin_inlines import FeedbackInline, AnswerInline, ImageInline
+
+from hsearch.admin_inlines import AnswerInline, FeedbackInline, ImageInline
 from hsearch.forms import AdminAuthenticationForm
-from hsearch.models import Chat, Offer, Answer, Feedback, Image, TgMessage
+from hsearch.models import Advertisement, Answer, Chat, Feedback, Image, TgMessage
 
 
 def _yes_no_img(var):
@@ -101,7 +102,7 @@ class ChatAdmin(admin.ModelAdmin):
     other_filters.short_description = 'other filters'
 
 
-@admin.register(Offer)
+@admin.register(Advertisement)
 class OfferAdmin(admin.ModelAdmin):
     search_fields = [
         'topic',
@@ -147,12 +148,12 @@ class OfferAdmin(admin.ModelAdmin):
         self.phones_cache = {i['phone']: i['id__count'] for i in res}
         return qs
 
-    def site_link(self, obj: Offer):
+    def site_link(self, obj: Advertisement):
         return SafeString(f'<a href="{obj.url}" target="_blank">{obj.site.title()}</a>')
 
     site_link.short_description = 'site'
 
-    def phone_count(self, obj: Offer):
+    def phone_count(self, obj: Advertisement):
         if obj.phone == '':
             return '-'
         phone_count = self.phones_cache.get(obj.phone) or 0
