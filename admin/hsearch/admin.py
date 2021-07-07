@@ -7,7 +7,7 @@ from django.utils.safestring import SafeString
 
 from hsearch.admin_inlines import AnswerInline, FeedbackInline, ImageInline
 from hsearch.forms import AdminAuthenticationForm
-from hsearch.models import Advertisement, Answer, Chat, Feedback, Image, TgMessage
+from hsearch.models import Apartment, Answer, Chat, Feedback, Image, TgMessage
 
 
 def _yes_no_img(var):
@@ -102,8 +102,8 @@ class ChatAdmin(admin.ModelAdmin):
     other_filters.short_description = 'other filters'
 
 
-@admin.register(Advertisement)
-class OfferAdmin(admin.ModelAdmin):
+@admin.register(Apartment)
+class ApartmentAdmin(admin.ModelAdmin):
     search_fields = [
         'topic',
         'body',
@@ -148,12 +148,12 @@ class OfferAdmin(admin.ModelAdmin):
         self.phones_cache = {i['phone']: i['id__count'] for i in res}
         return qs
 
-    def site_link(self, obj: Advertisement):
+    def site_link(self, obj: Apartment):
         return SafeString(f'<a href="{obj.url}" target="_blank">{obj.site.title()}</a>')
 
     site_link.short_description = 'site'
 
-    def phone_count(self, obj: Advertisement):
+    def phone_count(self, obj: Apartment):
         if obj.phone == '':
             return '-'
         phone_count = self.phones_cache.get(obj.phone) or 0
@@ -169,7 +169,7 @@ class AnswerAdmin(admin.ModelAdmin):
     list_display = [
         'id',
         'chat_link',
-        'offer_link',
+        'apartment_link',
         'dislike',
         'created',
     ]
@@ -178,15 +178,15 @@ class AnswerAdmin(admin.ModelAdmin):
         '-created',
     ]
 
-    def chat_link(self, obj: Feedback):
+    def chat_link(self, obj: Answer):
         return SafeString(f'<a href="/hsearch/hsearch/chat/{obj.chat.id}/">{obj.chat}</a>')
 
     chat_link.short_description = 'chat'
 
-    def offer_link(self, obj: Feedback):
-        return SafeString(f'<a href="/hsearch/hsearch/offer/{obj.offer.id}/">{obj.offer}</a>')
+    def apartment_link(self, obj: Answer):
+        return SafeString(f'<a href="/hsearch/hsearch/apartment/{obj.apartment.id}/">{obj.apartment}</a>')
 
-    offer_link.short_description = 'offer'
+    apartment_link.short_description = 'Apartment'
 
 
 @admin.register(Feedback)
@@ -226,17 +226,17 @@ class FeedbackAdmin(admin.ModelAdmin):
 class ImageAdmin(admin.ModelAdmin):
     list_display = [
         'path',
-        'offer_link',
+        'apartment_link',
         'image',
         'created',
     ]
 
     autocomplete_fields = [
-        'offer',
+        'apartment',
     ]
 
     search_fields = [
-        'offer__topic',
+        'apartment__topic',
         'path',
     ]
 
@@ -250,10 +250,10 @@ class ImageAdmin(admin.ModelAdmin):
 
     image.short_description = 'image'
 
-    def offer_link(self, obj: Feedback):
-        return SafeString(f'<a href="/hsearch/hsearch/offer/{obj.offer.id}/">{obj.offer}</a>')
+    def apartment_link(self, obj: Image):
+        return SafeString(f'<a href="/hsearch/hsearch/apartment/{obj.apartment.id}/">{obj.apartment}</a>')
 
-    offer_link.short_description = 'offer'
+    apartment_link.short_description = 'Apartment'
 
 
 @admin.register(TgMessage)
@@ -261,13 +261,13 @@ class TgMessageAdmin(admin.ModelAdmin):
     list_display = [
         'message',
         'chat_link',
-        'offer_link',
+        'apartment_link',
         'kind',
         'created',
     ]
 
     autocomplete_fields = [
-        'offer',
+        'apartment',
         'chat',
     ]
 
@@ -277,19 +277,19 @@ class TgMessageAdmin(admin.ModelAdmin):
 
     search_fields = [
         'chat__title',
-        'offer__topic',
+        'apartment__topic',
     ]
 
     ordering = [
         '-created',
     ]
 
-    def chat_link(self, obj: Feedback):
+    def chat_link(self, obj: TgMessage):
         return SafeString(f'<a href="/hsearch/hsearch/chat/{obj.chat.id}/">{obj.chat}</a>')
 
     chat_link.short_description = 'chat'
 
-    def offer_link(self, obj: Feedback):
-        return SafeString(f'<a href="/hsearch/hsearch/offer/{obj.offer.id}/">{obj.offer}</a>')
+    def apartment_link(self, obj: TgMessage):
+        return SafeString(f'<a href="/hsearch/hsearch/apartment/{obj.apartment.id}/">{obj.apartment}</a>')
 
-    offer_link.short_description = 'offer'
+    apartment_link.short_description = 'Apartment'

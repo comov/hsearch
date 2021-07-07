@@ -1,10 +1,10 @@
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 
-from hsearch.models import Advertisement
+from hsearch.models import Apartment
 
 
-def advertisement_list(request):
+def apartment_list(request):
     try:
         page = int(request.GET.get("page", 1))
     except ValueError:
@@ -15,8 +15,8 @@ def advertisement_list(request):
     except ValueError:
         return JsonResponse({"message": "The 'pear_page' parameter must be an integer."}, status=400)
 
-    available_fields = Advertisement.available_fields
-    available_relations_fields = Advertisement.available_relations_fields
+    available_fields = Apartment.available_fields
+    available_relations_fields = Apartment.available_relations_fields
 
     order = str(request.GET.get("order", "id"))
     ordering = order in available_fields
@@ -39,7 +39,7 @@ def advertisement_list(request):
 
     relations = list(relations)
 
-    queryset = Advertisement.objects.prefetch_related(*relations).only(*obj_fields).order_by(order)
+    queryset = Apartment.objects.prefetch_related(*relations).only(*obj_fields).order_by(order)
 
     paginator = Paginator(queryset, per_page=pear_page)
     return JsonResponse({

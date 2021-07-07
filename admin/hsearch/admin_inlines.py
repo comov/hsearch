@@ -40,7 +40,7 @@ class FeedbackInline(BaseReadOnly):
 class AnswerInline(BaseReadOnly):
     model = Answer
     fields = [
-        'offer',
+        'apartment',
         'dislike',
         'created',
     ]

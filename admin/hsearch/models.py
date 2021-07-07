@@ -32,7 +32,12 @@ class Chat(models.Model):
 
 
 class Image(models.Model):
-    offer = models.ForeignKey("hsearch.Advertisement", on_delete=models.DO_NOTHING, related_name="images")
+    apartment = models.ForeignKey(
+        "hsearch.Apartment",
+        on_delete=models.DO_NOTHING,
+        related_name="images",
+        db_column="offer_id",
+    )
     path = models.CharField(max_length=255, default="", unique=True)
     created = UnixTimeStampField()
 
@@ -41,10 +46,10 @@ class Image(models.Model):
         managed = False
 
     def __str__(self):
-        return f"{self.offer.topic} ({self.path})"
+        return f"{self.apartment.topic} ({self.path})"
 
     available_fields = [
-        "offer_id",
+        "apartment_id",
         "path",
         "created",
     ]
@@ -53,7 +58,7 @@ class Image(models.Model):
         return {field: getattr(self, field, None) for field in fields_list}
 
 
-class Advertisement(models.Model):
+class Apartment(models.Model):
     DIESEL = "diesel"
     LALAFO = "lalafo"
     HOUSE = "house"
@@ -125,7 +130,7 @@ class Advertisement(models.Model):
 
 class Answer(models.Model):
     chat = models.ForeignKey("hsearch.Chat", on_delete=models.DO_NOTHING, db_column="chat", related_name="answers")
-    offer = models.ForeignKey("hsearch.Advertisement", on_delete=models.DO_NOTHING, related_name="answers")
+    apartment = models.ForeignKey("hsearch.Apartment", on_delete=models.DO_NOTHING, related_name="answers")
     dislike = models.BooleanField(default=False)
     created = UnixTimeStampField()
 
@@ -134,7 +139,7 @@ class Answer(models.Model):
         managed = False
 
     def __str__(self):
-        return f"{self.chat_id} => {self.offer_id} ({self.dislike})"
+        return f"{self.chat_id} => {self.apartment_id} ({self.dislike})"
 
 
 class Feedback(models.Model):
@@ -162,7 +167,7 @@ class TgMessage(models.Model):
     )
     created = UnixTimeStampField()
     message = models.IntegerField(default=0, db_column="message_id")
-    offer = models.ForeignKey("hsearch.Advertisement", on_delete=models.DO_NOTHING, related_name="messages")
+    apartment = models.ForeignKey("hsearch.Apartment", on_delete=models.DO_NOTHING, related_name="messages")
     chat = models.ForeignKey("hsearch.Chat", on_delete=models.DO_NOTHING, db_column="chat", related_name="messages")
     kind = models.CharField(max_length=50, choices=KIND_CHOICES, default=OFFER)
 
