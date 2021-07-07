@@ -1,7 +1,7 @@
 from django.urls import path
 
-from hsearch.views.v1 import advertisement_list
+from hsearch.views.v1 import apartment_list
 
 urlpatterns = [
-    path("advertisement/list/", advertisement_list),
+    path("apartment/list/", apartment_list),
 ]
