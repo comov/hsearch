@@ -34,7 +34,7 @@ func (b *Bot) start(ctx context.Context, chat *tgbotapi.Chat) string {
 		title = fmt.Sprintf("%s %s", chat.FirstName, chat.LastName)
 	}
 
-	err = b.storage.CreateChat(ctx, chat.ID, chat.UserName, title, chat.Type)
+	err = b.storage.CreateChat(ctx, chat.ID, chat.UserName, title, chat.Type, true)
 	if err != nil {
 		sentry.CaptureException(err)
 		log.Println("[start.CreateChat] error:", err)

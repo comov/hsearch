@@ -13,12 +13,30 @@ def convert_field_to_string(field, registry=None):
 
 class ApartmentFilter(django_filters.FilterSet):
     created = django_filters.DateTimeFilter()
-    topic_icontains = django_filters.CharFilter(method="filter_topic_icontains")
-    phone = django_filters.CharFilter(lookup_expr="istartswith")
+
+    topic = django_filters.CharFilter(lookup_expr="icontains")
     body = django_filters.CharFilter(lookup_expr="icontains")
 
-    def filter_topic_icontains(self, queryset, name, value):
-        return queryset.filter(topic__icontains=value)
+    rooms = django_filters.Filter(method="filter_range")
+    area = django_filters.Filter(method="filter_range")
+    floor = django_filters.Filter(method="filter_range")
+    price = django_filters.Filter(method="filter_range")
+
+    with_images = django_filters.BooleanFilter(method="filter_with_images")
+
+    @staticmethod
+    def filter_range(queryset, name, value: str):
+        if len(value.split(",")) == 2:
+            return queryset.filter(**{f"{name}__range": value.split(",")})
+        elif value.isdigit():
+            return queryset.filter(**{name: value})
+        return queryset.none()
+
+    @staticmethod
+    def filter_with_images(queryset, name, value: bool):
+        if value:
+            return queryset.filter(images_count__gt=0)
+        return queryset.filter(images_count__lt=1)
 
     class Meta:
         model = Apartment
@@ -26,9 +44,8 @@ class ApartmentFilter(django_filters.FilterSet):
             "id",
             "url",
             "topic",
-            "full_price",
             "phone",
-            "room_numbers",
+            "rooms",
             "body",
             "images_count",
             "price",
@@ -38,7 +55,10 @@ class ApartmentFilter(django_filters.FilterSet):
             "room_type",
             "site",
             "floor",
+            "max_floor",
             "district",
+            "lat",
+            "lon",
             "created",
         ]
 

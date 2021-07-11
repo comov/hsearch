@@ -9,17 +9,17 @@ import (
 )
 
 // StartSearch - register new user or group if not exist or enable receive new
-//  offers.
+//  apartments.
 func (c *Connector) StartSearch(ctx context.Context, id int64, username, title, cType string) error {
 	chat, err := c.ReadChat(ctx, id)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return c.CreateChat(ctx, id, username, title, cType)
+			return c.CreateChat(ctx, id, username, title, cType, true)
 		}
 		return err
 	}
 
-	_, err = c.Conn.Exec(ctx, "UPDATE chat SET enable = 1 WHERE id = $1;", chat.Id)
+	_, err = c.Conn.Exec(ctx, "UPDATE hsearch_chat SET enable = 1 WHERE chat_id = $1;", chat.Id)
 	return err
 }
 
@@ -27,7 +27,7 @@ func (c *Connector) StartSearch(ctx context.Context, id int64, username, title, 
 func (c *Connector) UpdateSettings(ctx context.Context, chat *structs.Chat) error {
 	_, err := c.Conn.Exec(
 		ctx,
-		`UPDATE chat SET
+		`UPDATE hsearch_chat SET
 		enable = $1,
 		diesel = $2,
 		house = $3,
@@ -35,7 +35,7 @@ func (c *Connector) UpdateSettings(ctx context.Context, chat *structs.Chat) erro
 		photo = $5,
 		kgs = $6,
 		usd = $7
-	WHERE id = $8
+	WHERE chat_id = $8
 	`,
 		chat.Enable,
 		chat.Diesel,

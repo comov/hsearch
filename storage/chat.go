@@ -10,42 +10,61 @@ import (
 )
 
 // CreateChat - creates a chat room and sets the default settings.
-func (c *Connector) CreateChat(ctx context.Context, id int64, username, title, cType string) error {
+func (c *Connector) CreateChat(ctx context.Context, chatId int64, username, title, cType string, enabled bool) error {
 	_, err := c.Conn.Exec(
 		ctx,
-		`INSERT INTO chat (id, username, title, enable, c_type, created) VALUES ($1, $2, $3, $4, $5, $6);`,
-		id,
+		`INSERT INTO hsearch_chat (
+			chat_id,
+			username,
+			title,
+			enable,
+			c_type,
+			diesel,
+			lalafo,
+			house,
+			photo,
+			usd,
+			kgs,
+			created
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);`,
+		chatId,
 		username,
 		title,
-		true,
+		enabled,
 		cType,
+		true,
+		true,
+		true,
+		true,
+		"0:0",
+		"0:0",
 		time.Now().Unix(),
 	)
 	return err
 }
 
 // DeleteChat - creates a chat room and sets the default settings.
-func (c *Connector) DeleteChat(ctx context.Context, id int64) error {
+func (c *Connector) DeleteChat(ctx context.Context, chatId int64) error {
 	existId := 0
-	if err := c.Conn.QueryRow(ctx, "SELECT id FROM chat WHERE id = $1 LIMIT 1", id).Scan(&existId); err != nil {
+	if err := c.Conn.QueryRow(ctx, "SELECT chat_id FROM hsearch_chat WHERE chat_id = $1 LIMIT 1", chatId).Scan(&existId); err != nil {
 		return err
 	}
 
 	if existId != 0 {
-		_, err := c.Conn.Exec(ctx, "UPDATE chat SET enable = false WHERE id = $1", id)
+		_, err := c.Conn.Exec(ctx, "UPDATE hsearch_chat SET enable = false WHERE chat_id = $1", chatId)
 		return err
 	}
 
-	_, err := c.Conn.Exec(ctx, "INSERT INTO chat (id, enable) VALUES ($1, $2)", id, false)
-	return err
+	return c.CreateChat(ctx, chatId, "", "", "", false)
 }
 
 // ReadChat - return chat with user or with group if exist or return error.
-func (c *Connector) ReadChat(ctx context.Context, id int64) (*structs.Chat, error) {
+func (c *Connector) ReadChat(ctx context.Context, chatId int64) (*structs.Chat, error) {
 	chat := &structs.Chat{}
 	err := c.Conn.QueryRow(
 		ctx, `SELECT
 		id,
+		chat_id,
 		username,
 		title,
 		c_type,
@@ -57,12 +76,13 @@ func (c *Connector) ReadChat(ctx context.Context, id int64) (*structs.Chat, erro
 		photo,
 		usd,
 		kgs
-	FROM chat
-	WHERE id = $1
+	FROM hsearch_chat
+	WHERE chat_id = $1
 	`,
-		id,
+		chatId,
 	).Scan(
 		&chat.Id,
+		&chat.ChatId,
 		&chat.Username,
 		&chat.Title,
 		&chat.Type,
@@ -85,6 +105,7 @@ func (c *Connector) ReadChatsForMatching(ctx context.Context, enable int) ([]*st
 	query.WriteString(`
 	SELECT DISTINCT
 		c.id,
+		c.chat_id,
 		c.username,
 		c.title,
 		c.c_type,
@@ -96,7 +117,7 @@ func (c *Connector) ReadChatsForMatching(ctx context.Context, enable int) ([]*st
 		c.photo,
 		c.usd,
 		c.kgs
-	FROM chat c
+	FROM hsearch_chat c
 `)
 
 	switch enable {
@@ -118,6 +139,7 @@ func (c *Connector) ReadChatsForMatching(ctx context.Context, enable int) ([]*st
 		chat := new(structs.Chat)
 		err := rows.Scan(
 			&chat.Id,
+			&chat.ChatId,
 			&chat.Username,
 			&chat.Title,
 			&chat.Type,

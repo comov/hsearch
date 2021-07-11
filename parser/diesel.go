@@ -45,11 +45,11 @@ func (s *Diesel) Selector() string {
 	return s.MainSelector
 }
 
-func (s *Diesel) GetOffersMap(doc *goquery.Document) OffersMap {
-	return OffersMap{}
+func (s *Diesel) GetApartmentsMap(doc *goquery.Document) ApartmentsMap {
+	return ApartmentsMap{}
 }
 
-// IdFromHref - find offer Id from URL
+// IdFromHref - find apartment Id from URL
 func (s *Diesel) IdFromHref(href string) (uint64, error) {
 	urlPath, err := url.Parse(href)
 	if err != nil {
@@ -66,42 +66,41 @@ func (s *Diesel) IdFromHref(href string) (uint64, error) {
 	return uint64(idInt), nil
 }
 
-// ParseNewOffer - parse html and fills the offer with valid values
-func (s *Diesel) ParseNewOffer(href string, exId uint64, doc *goquery.Document) *structs.Offer {
-	roomType := s.spanContains(doc, "Тип помещения")
+// ParseNewApartment - parse html and fills the apartment with valid values
+func (s *Diesel) ParseNewApartment(href string, exId uint64, doc *goquery.Document) *structs.Apartment {
+	roomType := s.spanContainsStr(doc, "Тип помещения")
 	isNotBlank := roomType != ""
 	isNotFlat := strings.ToLower(roomType) != "квартира"
 	if isNotBlank && isNotFlat {
 		return nil
 	}
 
-	city := s.spanContains(doc, "Город:")
+	city := s.spanContainsStr(doc, "Город:")
 	isNotBlank = city != ""
 	isNotBishkek := strings.ToLower(city) != "бишкек"
 	if isNotBlank && isNotBishkek {
 		return nil
 	}
 
-	fullPrice, price, currency := s.parsePrice(doc)
+	price, currency := s.parsePrice(doc)
 	images := s.parseImages(doc)
-	return &structs.Offer{
-		Id:         exId,
-		Site:       s.Site,
-		Url:        href,
-		Topic:      s.parseTitle(doc),
-		FullPrice:  fullPrice,
-		Price:      price,
-		Currency:   currency,
-		Phone:      s.parsePhone(doc),
-		Rooms:      s.spanContains(doc, "Количество комнат"),
-		Area:       s.spanContains(doc, "Площадь (кв.м.)"),
-		Floor:      "",
-		District:   "",
-		City:       city,
-		RoomType:   roomType,
-		Body:       s.parseBody(doc),
-		Images:     len(images),
-		ImagesList: images,
+	return &structs.Apartment{
+		ExternalId:  exId,
+		Site:        s.Site,
+		Url:         href,
+		Topic:       s.parseTitle(doc),
+		Price:       price,
+		Currency:    currency,
+		Phone:       s.parsePhone(doc),
+		Rooms:       s.spanContains(doc, "Количество комнат"),
+		Area:        s.spanContains(doc, "Площадь (кв.м.)"),
+		Floor:       0,
+		District:    "",
+		City:        city,
+		RoomType:    roomType,
+		Body:        s.parseBody(doc),
+		ImagesCount: int32(len(images)),
+		ImagesList:  images,
 	}
 }
 
@@ -111,10 +110,10 @@ func (s *Diesel) parseTitle(doc *goquery.Document) string {
 }
 
 // parsePrice - find price from badge
-func (s *Diesel) parsePrice(doc *goquery.Document) (string, int, string) {
+func (s *Diesel) parsePrice(doc *goquery.Document) (int32, int32) {
 	fullPrice := doc.Find("span.field-value.badge.badge-green").Text()
 	price := 0
-	currency := ""
+	currencyStr := ""
 
 	pInt := intRegex.FindAllString(fullPrice, -1)
 	if len(pInt) == 1 {
@@ -127,15 +126,18 @@ func (s *Diesel) parsePrice(doc *goquery.Document) (string, int, string) {
 
 	pCurrency := textRegex.FindAllString(fullPrice, -1)
 	if len(pCurrency) == 1 {
-		currency = strings.ToLower(pCurrency[0])
+		currencyStr = strings.ToLower(pCurrency[0])
 	}
 
-	if currency == "сом" {
-		currency = "kgs"
-		fullPrice = fmt.Sprintf("%d %s", price, strings.ToUpper(currency))
+	currency := 0
+	switch currencyStr {
+	case "сом":
+		currency = 2
+	case "usd":
+		currency = 1
 	}
 
-	return fullPrice, price, currency
+	return int32(price), int32(currency)
 }
 
 // parsePhone - find phone number from badge
@@ -147,16 +149,31 @@ func (s *Diesel) parsePhone(doc *goquery.Document) string {
 	return phone
 }
 
-// spanContains - find text value by contain selector
-func (s *Diesel) spanContains(doc *goquery.Document, text string) string {
+// spanContainsStr - find text value by contain selector
+func (s *Diesel) spanContainsStr(doc *goquery.Document, text string) string {
 	nodes := doc.Find("span:contains('" + text + "')").Parent().Children().Nodes
 	if len(nodes) > 1 {
-		return fmt.Sprintf("%s м2", goquery.NewDocumentFromNode(nodes[1]).Text())
+		return goquery.NewDocumentFromNode(nodes[1]).Text()
 	}
 	return ""
 }
 
-// parseBody - find offer body in page
+// spanContains - find text value by contain selector
+func (s *Diesel) spanContains(doc *goquery.Document, text string) int32 {
+	nodes := doc.Find("span:contains('" + text + "')").Parent().Children().Nodes
+	if len(nodes) > 1 {
+		str := goquery.NewDocumentFromNode(nodes[1]).Text()
+		p, err := strconv.Atoi(str)
+		if err != nil {
+			log.Printf("[spanContains] %s with an error: %s", str, err)
+			return 0
+		}
+		return int32(p)
+	}
+	return 0
+}
+
+// parseBody - find apartment body in page
 func (s *Diesel) parseBody(doc *goquery.Document) string {
 	messages := doc.Find(".post.entry-content").Nodes
 	body := ""
@@ -171,7 +188,7 @@ func (s *Diesel) parseBody(doc *goquery.Document) string {
 	return body
 }
 
-// parseImages - file all attachment in offer
+// parseImages - file all attachment in apartment
 func (s *Diesel) parseImages(doc *goquery.Document) []string {
 	images := make([]string, 0)
 	doc.Find(".attach").Each(func(i int, s *goquery.Selection) {

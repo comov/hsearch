@@ -4,6 +4,9 @@ import environ
 
 # BASE
 # ----------------------------------------------------------------------------
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ENVIRONMENT
@@ -35,6 +38,7 @@ INSTALLED_APPS = [
 
     "corsheaders",
     "graphene_django",
+    "social_django",
 ]
 
 # MIDDLEWARE
@@ -68,6 +72,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "social_django.context_processors.backends",
+                "social_django.context_processors.login_redirect",
             ],
         },
     },
@@ -90,6 +96,9 @@ DATABASES = {
     },
 }
 
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+
 # AUTHENTICATION
 # ----------------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
@@ -106,6 +115,14 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+
+AUTHENTICATION_BACKENDS = [
+    "social_core.backends.telegram.TelegramAuth",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+SOCIAL_AUTH_TELEGRAM_BOT_TOKEN = env("TG_TOKEN", default="")
+LOGIN_REDIRECT_URL = "/"
 
 # LOCALIZATION
 # ----------------------------------------------------------------------------
@@ -125,6 +142,12 @@ STATIC_ROOT = BASE_DIR / "static"
 RECAPTCHA_PUBLIC_KEY = env("RECAPTCHA_PUBLIC_KEY", default="")
 RECAPTCHA_PRIVATE_KEY = env("RECAPTCHA_PRIVATE_KEY", default="")
 
+# Telegram
+# ----------------------------------------------------------------------------
+TG_NAME = env("TG_NAME", default="hsearch_dev_bot")
+TG_CHAT_ID = env.int("TG_CHAT_ID", default=-1001248414108)
+TG_LOGIN_REDIRECT_URL = "/auth/complete/telegram/"
+
 # graphene-django
 # ----------------------------------------------------------------------------
 GRAPHENE = {
@@ -138,3 +161,15 @@ CORS_ORIGIN_REGEX_WHITELIST = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Sentry
+# ----------------------------------------------------------------------------
+SENTRY_DSN = env("DJANGO_SENTRY_DSN", default="")
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=1.0,
+        send_default_pii=True,
+    )

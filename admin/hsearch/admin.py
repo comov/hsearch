@@ -11,13 +11,13 @@ from hsearch.models import Apartment, Answer, Chat, Feedback, Image, TgMessage
 
 
 def _yes_no_img(var):
-    res = ('yes', 'True') if var else ('no', 'False')
+    res = ("yes", "True") if var else ("no", "False")
     return '<img src="/static/admin/img/icon-%s.svg" alt="%s">' % res
 
 
 class AdminSite(admin.AdminSite):
     login_form = AdminAuthenticationForm
-    login_template = 'admin/login.html'
+    login_template = "admin/login.html"
 
     def _registry_getter(self):
         return default_site._registry
@@ -29,6 +29,7 @@ class AdminSite(admin.AdminSite):
 
 
 site = AdminSite()
+site.enable_nav_sidebar = False
 admin.site = site
 default_site.enable_nav_sidebar = False
 
@@ -39,27 +40,27 @@ admin.site.register(User, UserAdmin)
 @admin.register(Chat)
 class ChatAdmin(admin.ModelAdmin):
     list_display = [
-        'display',
-        'telegram_link',
-        'c_type',
-        'sites',
-        'other_filters',
-        'enable',
-        'created',
+        "display",
+        "telegram_link",
+        "c_type",
+        "sites",
+        "other_filters",
+        "enable",
+        "created",
     ]
 
     list_filter = [
-        'c_type',
-        'enable',
-        'diesel',
-        'lalafo',
-        'house',
-        'photo',
+        "c_type",
+        "enable",
+        "diesel",
+        "lalafo",
+        "house",
+        "photo",
     ]
 
     search_fields = [
-        'title',
-        'username',
+        "title",
+        "username",
     ]
 
     inlines = [
@@ -68,20 +69,20 @@ class ChatAdmin(admin.ModelAdmin):
     ]
 
     ordering = [
-        '-created',
+        "-created",
     ]
 
     def display(self, obj: Chat):
-        return f'{obj.title} (#{obj.id})'
+        return f"{obj.title} (#{obj.id})"
 
-    display.short_description = 'display'
+    display.short_description = "display"
 
     def telegram_link(self, obj: Chat):
         if not obj.username:
-            return '-'
+            return "-"
         return SafeString(f'<a href="https://t.me/{obj.username}">{obj.username}</a>')
 
-    telegram_link.short_description = 'telegram'
+    telegram_link.short_description = "telegram"
 
     def sites(self, obj: Chat):
         return SafeString(
@@ -105,31 +106,40 @@ class ChatAdmin(admin.ModelAdmin):
 @admin.register(Apartment)
 class ApartmentAdmin(admin.ModelAdmin):
     search_fields = [
-        'topic',
-        'body',
+        "topic",
+        "body",
     ]
 
     list_display = [
-        'topic',
-        'site_link',
-        'floor',
-        'area',
-        'room_numbers',
-        'full_price',
-        'images_count',
-        'phone_count',
-        'created',
+        "url",
+        "topic",
+        "phone",
+        "rooms",
+        "body",
+        "images_count",
+        "price",
+        "currency",
+        "area",
+        "city",
+        "room_type",
+        "site",
+        "floor",
+        "max_floor",
+        "district",
+        "lat",
+        "lon",
+        "created",
     ]
 
     list_filter = [
-        'site',
-        'room_numbers',
-        'currency',
-        'floor',
+        "site",
+        "rooms",
+        "currency",
+        "floor",
     ]
 
     readonly_fields = [
-        'images_count',
+        "images_count",
     ]
 
     inlines = [
@@ -137,7 +147,7 @@ class ApartmentAdmin(admin.ModelAdmin):
     ]
 
     ordering = [
-        '-created',
+        "-created",
     ]
 
     phones_cache = {}
@@ -167,15 +177,15 @@ class ApartmentAdmin(admin.ModelAdmin):
 @admin.register(Answer)
 class AnswerAdmin(admin.ModelAdmin):
     list_display = [
-        'id',
-        'chat_link',
-        'apartment_link',
-        'dislike',
-        'created',
+        "id",
+        "chat_link",
+        "apartment_link",
+        "dislike",
+        "created",
     ]
 
     ordering = [
-        '-created',
+        "-created",
     ]
 
     def chat_link(self, obj: Answer):
@@ -192,21 +202,21 @@ class AnswerAdmin(admin.ModelAdmin):
 @admin.register(Feedback)
 class FeedbackAdmin(admin.ModelAdmin):
     list_display = [
-        'id',
-        'chat_link',
-        'telegram_link',
-        'body',
-        'created',
+        "id",
+        "chat_link",
+        "telegram_link",
+        "body",
+        "created",
     ]
 
     search_fields = [
-        'username',
-        'chat__title',
-        'body',
+        "username",
+        "chat__title",
+        "body",
     ]
 
     ordering = [
-        '-created',
+        "-created",
     ]
 
     def telegram_link(self, obj: Feedback):
@@ -225,30 +235,30 @@ class FeedbackAdmin(admin.ModelAdmin):
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):
     list_display = [
-        'path',
-        'apartment_link',
-        'image',
-        'created',
+        "path",
+        "apartment_link",
+        "image",
+        "created",
     ]
 
     autocomplete_fields = [
-        'apartment',
+        "apartment",
     ]
 
     search_fields = [
-        'apartment__topic',
-        'path',
+        "apartment__topic",
+        "path",
     ]
 
     ordering = [
-        '-created',
+        "-created",
     ]
 
     def image(self, obj: Image):
         name = obj.path.split('/')[-1]
         return SafeString(f'<img height="200px" src="{obj.path}" alt="{name}"/>')
 
-    image.short_description = 'image'
+    image.short_description = "image"
 
     def apartment_link(self, obj: Image):
         return SafeString(f'<a href="/hsearch/hsearch/apartment/{obj.apartment.id}/">{obj.apartment}</a>')
@@ -259,29 +269,29 @@ class ImageAdmin(admin.ModelAdmin):
 @admin.register(TgMessage)
 class TgMessageAdmin(admin.ModelAdmin):
     list_display = [
-        'message',
-        'chat_link',
-        'apartment_link',
-        'kind',
-        'created',
+        "message_id",
+        "chat_link",
+        "apartment_link",
+        "kind",
+        "created",
     ]
 
     autocomplete_fields = [
-        'apartment',
-        'chat',
+        "apartment",
+        "chat",
     ]
 
     list_filter = [
-        'kind',
+        "kind",
     ]
 
     search_fields = [
-        'chat__title',
-        'apartment__topic',
+        "chat__title",
+        "apartment__topic",
     ]
 
     ordering = [
-        '-created',
+        "-created",
     ]
 
     def chat_link(self, obj: TgMessage):
@@ -292,4 +302,4 @@ class TgMessageAdmin(admin.ModelAdmin):
     def apartment_link(self, obj: TgMessage):
         return SafeString(f'<a href="/hsearch/hsearch/apartment/{obj.apartment.id}/">{obj.apartment}</a>')
 
-    apartment_link.short_description = 'Apartment'
+    apartment_link.short_description = "Apartment"

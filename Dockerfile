@@ -13,6 +13,5 @@ FROM alpine:3.11.5
 RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /go/bin/ /usr/local/bin/
-COPY --from=builder /srv/migrations /srv/migrations
 
 CMD ["hsearch"]

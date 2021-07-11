@@ -19,12 +19,12 @@ type (
 		Dislike(ctx context.Context, msgId int, chatId int64) ([]int, error)
 		Feedback(ctx context.Context, chat int64, username, body string) error
 
-		SaveMessage(ctx context.Context, msgId int, offerId uint64, chat int64, kind string) error
-		ReadOfferDescription(ctx context.Context, msgId int, chatId int64) (uint64, string, error)
-		ReadOfferImages(ctx context.Context, msgId int, chatId int64) (uint64, []string, error)
+		SaveMessage(ctx context.Context, msgId int, apartmentId uint64, chat int64, kind string) error
+		ReadApartmentDescription(ctx context.Context, msgId int, chatId int64) (uint64, string, error)
+		ReadApartmentImages(ctx context.Context, msgId int, chatId int64) (uint64, []string, error)
 
 		ReadChat(ctx context.Context, id int64) (*structs.Chat, error)
-		CreateChat(ctx context.Context, id int64, username, title, cType string) error
+		CreateChat(ctx context.Context, id int64, username, title, cType string, enabled bool) error
 		DeleteChat(ctx context.Context, id int64) error
 		UpdateSettings(ctx context.Context, chat *structs.Chat) error
 	}

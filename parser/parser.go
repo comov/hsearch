@@ -22,9 +22,9 @@ type (
 		Name() string
 		Selector() string
 
-		GetOffersMap(doc *goquery.Document) OffersMap
+		GetApartmentsMap(doc *goquery.Document) ApartmentsMap
 		IdFromHref(href string) (uint64, error)
-		ParseNewOffer(href string, exId uint64, doc *goquery.Document) *structs.Offer
+		ParseNewApartment(href string, exId uint64, doc *goquery.Document) *structs.Apartment
 	}
 )
 
@@ -32,74 +32,74 @@ type (
 //  [NOT]: Тема-негативка. Только факты. Арендаторам и Арендодателям внимание!
 const negativeTheme = 2477961
 
-type OffersMap = map[uint64]string
+type ApartmentsMap = map[uint64]string
 
 var (
 	intRegex  = regexp.MustCompile(`\d+`)
 	textRegex = regexp.MustCompile(`[a-zA-Zа-яА-Я]+`)
 )
 
-// FindOffersLinksOnSite - load new offers from the site and all find offers
-func FindOffersLinksOnSite(site Site) (OffersMap, error) {
+// FindApartmentsLinksOnSite - load new apartments from the site and all find apartments
+func FindApartmentsLinksOnSite(site Site) (ApartmentsMap, error) {
 	doc, err := GetDocumentByUrl(site.Url())
 	if err != nil {
 		return nil, err
 	}
 
-	offers := make(OffersMap)
+	apartments := make(ApartmentsMap)
 
 	switch site.Name() {
 	case structs.SiteLalafo:
-		offers = site.GetOffersMap(doc)
+		apartments = site.GetApartmentsMap(doc)
 	case structs.SiteHouse:
-		offers = site.GetOffersMap(doc)
+		apartments = site.GetApartmentsMap(doc)
 	default:
-		offers = DefaultParser(site, doc)
+		apartments = DefaultParser(site, doc)
 	}
 
-	delete(offers, negativeTheme)
-	return offers, nil
+	delete(apartments, negativeTheme)
+	return apartments, nil
 }
 
-type loadOffers struct {
-	offers []*structs.Offer
-	add    chan *structs.Offer
+type loadApartments struct {
+	apartments []*structs.Apartment
+	add    chan *structs.Apartment
 	wg     sync.WaitGroup
 	ctx    context.Context
 }
 
-func (l *loadOffers) loadOffer(site Site, id uint64, href string) {
+func (l *loadApartments) loadApartment(site Site, id uint64, href string) {
 	defer l.wg.Done()
 
 	doc, err := GetDocumentByUrl(href)
 	if err != nil {
-		log.Printf("Can't load offer %s with an error %s\f", href, err)
+		log.Printf("Can't load apartment %s with an error %s\f", href, err)
 		return
 	}
 
-	offer := site.ParseNewOffer(href, id, doc)
-	if offer != nil {
-		l.add <- offer
+	apartment := site.ParseNewApartment(href, id, doc)
+	if apartment != nil {
+		l.add <- apartment
 	}
 }
 
-func (l *loadOffers) addOffer() {
+func (l *loadApartments) addApartment() {
 	for {
 		select {
-		case offer := <-l.add:
-			l.offers = append(l.offers, offer)
+		case apartment := <-l.add:
+			l.apartments = append(l.apartments, apartment)
 		case <-l.ctx.Done():
 			return
 		}
 	}
 }
 
-// LoadOffersDetail - выгружает и парсит offers по href
-func LoadOffersDetail(offersList map[uint64]string, site Site) []*structs.Offer {
+// LoadApartmentsDetail - выгружает и парсит apartments по href
+func LoadApartmentsDetail(apartmentsList map[uint64]string, site Site) []*structs.Apartment {
 	// fixme: это ёбаный костыль!
-	lo := loadOffers{
-		offers: make([]*structs.Offer, 0),
-		add:    make(chan *structs.Offer, len(offersList)),
+	lo := loadApartments{
+		apartments: make([]*structs.Apartment, 0),
+		add:    make(chan *structs.Apartment, len(apartmentsList)),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -107,16 +107,16 @@ func LoadOffersDetail(offersList map[uint64]string, site Site) []*structs.Offer 
 	defer cancel()
 	defer close(lo.add)
 
-	go lo.addOffer()
+	go lo.addApartment()
 
-	for id, href := range offersList {
+	for id, href := range apartmentsList {
 		lo.wg.Add(1)
-		go lo.loadOffer(site, id, href)
+		go lo.loadApartment(site, id, href)
 	}
 
 	lo.wg.Wait()
-	time.Sleep(time.Second * 1) // fixme: особенно это. Типа ожидать чтоб добавить в список последний offer
-	return lo.offers
+	time.Sleep(time.Second * 1) // fixme: особенно это. Типа ожидать чтоб добавить в список последний apartment
+	return lo.apartments
 }
 
 // GetDocumentByUrl - получает страницу по http, читает и возвращет объект
@@ -142,8 +142,8 @@ func GetDocumentByUrl(url string) (*goquery.Document, error) {
 	return goquery.NewDocumentFromReader(res.Body)
 }
 
-func DefaultParser(site Site, doc *goquery.Document) OffersMap {
-	var mapResponse = make(OffersMap, 0)
+func DefaultParser(site Site, doc *goquery.Document) ApartmentsMap {
+	var mapResponse = make(ApartmentsMap, 0)
 	doc.Find(site.Selector()).Each(func(i int, s *goquery.Selection) {
 		href, ok := s.Attr("href")
 		if !ok {
@@ -151,7 +151,7 @@ func DefaultParser(site Site, doc *goquery.Document) OffersMap {
 			return
 		}
 
-		offerId, err := site.IdFromHref(href)
+		apartmentId, err := site.IdFromHref(href)
 		if err != nil {
 			log.Println("Can't get Id from href with an error", err)
 			return
@@ -163,7 +163,7 @@ func DefaultParser(site Site, doc *goquery.Document) OffersMap {
 			return
 		}
 
-		mapResponse[offerId] = fmt.Sprintf("%s%s", site.FullHost(), u.RequestURI())
+		mapResponse[apartmentId] = fmt.Sprintf("%s%s", site.FullHost(), u.RequestURI())
 	})
 	return mapResponse
 }

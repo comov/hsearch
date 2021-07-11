@@ -49,26 +49,26 @@ func (m *Manager) matcher() {
 func (m *Manager) matching(ctx context.Context, chat *structs.Chat) {
 	log.Printf("[matcher] Startmatcher matching for `%s`\n", chat.Title)
 
-	offer, err := m.st.ReadNextOffer(ctx, chat)
+	apartment, err := m.st.ReadNextApartment(ctx, chat)
 	if err != nil {
 		sentry.AddBreadcrumb(&sentry.Breadcrumb{
 			Category: "matcher",
 			Data: map[string]interface{}{
-				"method": "ReadNextOffer",
-				"chat.id": chat.Id,
+				"method": "ReadNextApartment",
+				"chat.id": chat.ChatId,
 				"chat.title": chat.Title,
 			},
 		})
-		log.Printf("[matcher] Can't read offer for %s with an error: %s\n", chat.Title, err)
+		log.Printf("[matcher] Can't read apartment for %s with an error: %s\n", chat.Title, err)
 		return
 	}
 
-	if offer == nil {
-		log.Printf("[matcher] For `%s` not new offers\n", chat.Title)
+	if apartment == nil {
+		log.Printf("[matcher] For `%s` not new apartments\n", chat.Title)
 		return
 	}
 
-	err = m.bot.SendOffer(ctx, offer, chat)
+	err = m.bot.SendApartment(ctx, apartment, chat)
 	if err != nil {
 		if strings.Contains(err.Error(), "blocked by the user") {
 			chat.Enable = false
@@ -81,11 +81,11 @@ func (m *Manager) matching(ctx context.Context, chat *structs.Chat) {
 		sentry.AddBreadcrumb(&sentry.Breadcrumb{
 			Category: "matcher",
 			Data: map[string]interface{}{
-				"method": "SendOffer",
-				"offer.id": offer.Id,
-				"offer.url": offer.Url,
-				"offer.topic": offer.Topic,
-				"chat.id": chat.Id,
+				"method": "SendApartment",
+				"apartment.id": apartment.Id,
+				"apartment.url": apartment.Url,
+				"apartment.topic": apartment.Topic,
+				"chat.id": chat.ChatId,
 				"chat.title": chat.Title,
 			},
 		})
@@ -94,5 +94,5 @@ func (m *Manager) matching(ctx context.Context, chat *structs.Chat) {
 		return
 	}
 
-	log.Printf("[matcher] Successfully send offer %d for `%s`\n", offer.Id, chat.Title)
+	log.Printf("[matcher] Successfully send apartment %d for `%s`\n", apartment.Id, chat.Title)
 }

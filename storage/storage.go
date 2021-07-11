@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/jackc/tern/migrate"
 
 	"github.com/comov/hsearch/configs"
 )
@@ -36,26 +35,6 @@ func New(ctx context.Context, cnf *configs.Config) (*Connector, error) {
 		Conn:          conn,
 		relevanceTime: cnf.RelevanceTime,
 	}, nil
-}
-
-// Migrate - Applies the changes recorded in the migration files to the
-//  database.
-func (c *Connector) Migrate(ctx context.Context, path string) error {
-	conn, err := c.Conn.Acquire(ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.Release()
-
-	migrator, err := migrate.NewMigrator(ctx, conn.Conn(), "versions")
-	if err != nil {
-		return err
-	}
-	err = migrator.LoadMigrations(path)
-	if err != nil {
-		return err
-	}
-	return migrator.Migrate(ctx)
 }
 
 // Close - close connection with database

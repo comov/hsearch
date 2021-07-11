@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ReLocation</title>
+</head>
+<body>
+{% if request.user.is_authenticated %}
+    <p>About user:</p>
+    <p>id: {{ request.user.id }}</p>
+    <p>username: {{ request.user.username }}</p>
+    <p>Full name: {{ request.user.get_full_name }}</p>
+{% else %}
+    <script async src="https://telegram.org/js/telegram-widget.js?15" data-telegram-login="{{ bot_name }}"
+            data-size="medium" data-auth-url="{{ auth_url }}" data-request-access="write"></script>
+{% endif %}
+</body>
+</html>

@@ -1,7 +1,7 @@
 FROM python:3.8.5-alpine
 
-RUN apk add --no-cache postgresql-dev gcc g++ linux-headers mailcap
-RUN pip install uwsgi
+RUN apk add --no-cache postgresql-dev gcc g++ linux-headers mailcap musl-dev python3-dev libffi-dev openssl-dev cargo
+RUN pip install -U pip uwsgi
 
 WORKDIR /srv/admin
 

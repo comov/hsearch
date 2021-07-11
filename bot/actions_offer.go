@@ -16,16 +16,16 @@ var (
 	descriptionButton = tgbotapi.NewInlineKeyboardButtonData("Описание", "description")
 )
 
-func getKeyboard(offer *structs.Offer) tgbotapi.InlineKeyboardMarkup {
+func getKeyboard(apartment *structs.Apartment) tgbotapi.InlineKeyboardMarkup {
 	row1 := tgbotapi.NewInlineKeyboardRow(dislikeButton)
 	row2 := tgbotapi.NewInlineKeyboardRow()
 
-	if len(offer.Body) != 0 {
+	if len(apartment.Body) != 0 {
 		row2 = append(row2, descriptionButton)
 	}
 
-	if offer.Images != 0 {
-		row2 = append(row2, tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("Фото (%d)", offer.Images), "photo"))
+	if apartment.ImagesCount != 0 {
+		row2 = append(row2, tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("Фото (%d)", apartment.ImagesCount), "photo"))
 	}
 
 	if len(row2) == 0 {
@@ -69,14 +69,14 @@ func (b *Bot) dislike(ctx context.Context, query *tgbotapi.CallbackQuery) {
 
 // description - return full description about order
 func (b *Bot) description(ctx context.Context, query *tgbotapi.CallbackQuery) {
-	offerId, body, err := b.storage.ReadOfferDescription(
+	apartmentId, body, err := b.storage.ReadApartmentDescription(
 		ctx,
 		query.Message.MessageID,
 		query.Message.Chat.ID,
 	)
 	if err != nil {
 		sentry.CaptureException(err)
-		log.Println("[description.ReadOfferDescription] error:", err)
+		log.Println("[description.ReadApartmentDescription] error:", err)
 		return
 	}
 
@@ -92,7 +92,7 @@ func (b *Bot) description(ctx context.Context, query *tgbotapi.CallbackQuery) {
 	err = b.storage.SaveMessage(
 		ctx,
 		send.MessageID,
-		offerId,
+		apartmentId,
 		query.Message.Chat.ID,
 		structs.KindDescription,
 	)
@@ -104,10 +104,10 @@ func (b *Bot) description(ctx context.Context, query *tgbotapi.CallbackQuery) {
 
 // photo - this button return all orders photos from site
 func (b *Bot) photo(ctx context.Context, query *tgbotapi.CallbackQuery) {
-	offerId, images, err := b.storage.ReadOfferImages(ctx, query.Message.MessageID, query.Message.Chat.ID)
+	apartmentId, images, err := b.storage.ReadApartmentImages(ctx, query.Message.MessageID, query.Message.Chat.ID)
 	if err != nil {
 		sentry.CaptureException(err)
-		log.Println("[photo.ReadOfferDescription] error:", err)
+		log.Println("[photo.ReadApartmentDescription] error:", err)
 		return
 	}
 
@@ -139,7 +139,7 @@ func (b *Bot) photo(ctx context.Context, query *tgbotapi.CallbackQuery) {
 			err = b.storage.SaveMessage(
 				ctx,
 				msg.MessageID,
-				offerId,
+				apartmentId,
 				query.Message.Chat.ID,
 				structs.KindPhoto,
 			)

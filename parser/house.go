@@ -44,7 +44,7 @@ func (s *House) Selector() string {
 	return s.MainSelector
 }
 
-func (s *House) GetOffersMap(doc *goquery.Document) OffersMap {
+func (s *House) GetApartmentsMap(doc *goquery.Document) ApartmentsMap {
 	var mapResponse = DefaultParser(s, doc)
 
 	var lastPage = 1
@@ -79,7 +79,7 @@ func (s *House) GetOffersMap(doc *goquery.Document) OffersMap {
 	return mapResponse
 }
 
-// IdFromHref - find offer Id from URL
+// IdFromHref - find apartment Id from URL
 func (s *House) IdFromHref(href string) (uint64, error) {
 	res := strings.Split(href, "-")
 	if len(res) == 2 {
@@ -92,27 +92,28 @@ func (s *House) IdFromHref(href string) (uint64, error) {
 	return 0, fmt.Errorf("can't find id from href %s", href)
 }
 
-// ParseNewOffer - parse html and fills the offer with valid values
-func (s *House) ParseNewOffer(href string, exId uint64, doc *goquery.Document) *structs.Offer {
-	fullPrice, price, currency := s.parsePrice(doc)
+// ParseNewApartment - parse html and fills the apartment with valid values
+func (s *House) ParseNewApartment(href string, exId uint64, doc *goquery.Document) *structs.Apartment {
+	price, currency := s.parsePrice(doc)
+	floor, maxFloor := s.floor(doc)
 	images := s.parseImages(doc)
-	return &structs.Offer{
-		Id:         exId,
-		Site:       s.Site,
-		Url:        href,
-		Topic:      s.parseTitle(doc),
-		FullPrice:  fullPrice,
-		Price:      price,
-		Currency:   currency,
-		Phone:      s.parsePhone(doc),
-		Area:       s.area(doc),
-		Floor:      s.floor(doc),
-		District:   s.district(doc),
-		City:       "Бишкек", //city,
-		RoomType:   "",       //roomType,
-		Body:       s.parseBody(doc),
-		Images:     len(images),
-		ImagesList: images,
+	return &structs.Apartment{
+		ExternalId:  exId,
+		Site:        s.Site,
+		Url:         href,
+		Topic:       s.parseTitle(doc),
+		Price:       price,
+		Currency:    currency,
+		Phone:       s.parsePhone(doc),
+		Area:        s.area(doc),
+		Floor:       floor,
+		MaxFloor:    maxFloor,
+		District:    s.district(doc),
+		City:        "Бишкек", //city,
+		RoomType:    "",       //roomType,
+		Body:        s.parseBody(doc),
+		ImagesCount: int32(len(images)),
+		ImagesList:  images,
 	}
 }
 
@@ -122,7 +123,7 @@ func (s *House) parseTitle(doc *goquery.Document) string {
 }
 
 // parsePrice - find price from badge
-func (s *House) parsePrice(doc *goquery.Document) (string, int, string) {
+func (s *House) parsePrice(doc *goquery.Document) (int32, int32) {
 	fullPrice := doc.Find(".price-dollar").Text()
 	price := 0
 
@@ -131,17 +132,35 @@ func (s *House) parsePrice(doc *goquery.Document) (string, int, string) {
 		p, err := strconv.Atoi(pInt[0])
 		if err != nil {
 			log.Printf("[parsePrice] %s with an error: %s", fullPrice, err)
+			return 0, 0
 		}
 		price = p
 	}
 
-	return fmt.Sprintf("%d USD", price), price, "usd"
+	return int32(price), 2
 }
 
-func (s *House) floor(doc *goquery.Document) string {
+func (s *House) floor(doc *goquery.Document) (int32, int32) {
 	floor := s.infoContains(doc, "Этаж")
-	floor = strings.Replace(floor, "этаж ", "", -1)
-	return strings.TrimSpace(floor)
+	floor = strings.TrimSpace(strings.Replace(floor, "этаж ", "", -1))
+	numData := strings.Split(floor, " из ")
+	if len(numData) != 2 {
+		return 0, 0
+	}
+
+	currentFloor, err := strconv.Atoi(numData[0])
+	if err != nil {
+		log.Printf("[floor.currentFloor] %s with an error: %s", floor, err)
+		return 0, 0
+	}
+
+	maxFloor, err := strconv.Atoi(numData[1])
+	if err != nil {
+		log.Printf("[floor.maxFloor] %s with an error: %s", floor, err)
+		return 0, 0
+	}
+
+	return int32(currentFloor), int32(maxFloor)
 }
 
 func (s *House) district(doc *goquery.Document) string {
@@ -169,12 +188,12 @@ func (s *House) infoContains(doc *goquery.Document, text string) string {
 	return ""
 }
 
-// parseBody - find offer body in page
+// parseBody - find apartment body in page
 func (s *House) parseBody(doc *goquery.Document) string {
 	return strings.TrimSpace(doc.Find(".description > p").Text())
 }
 
-// parseImages - file all attachment in offer
+// parseImages - file all attachment in apartment
 func (s *House) parseImages(doc *goquery.Document) []string {
 	images := make([]string, 0)
 	doc.Find(".fotorama > a").Each(func(i int, s *goquery.Selection) {
@@ -186,16 +205,16 @@ func (s *House) parseImages(doc *goquery.Document) []string {
 	return images
 }
 
-func (s *House) area(doc *goquery.Document) string {
+func (s *House) area(doc *goquery.Document) int32 {
 	areaString := s.infoContains(doc, "Площадь")
 	if areaString != "" {
 		r := intRegex.FindAllString(areaString, -1)
 		if len(r) >= 1 {
 			area, err := strconv.Atoi(r[0])
 			if err == nil && area > 10 && area < 299 {
-				return fmt.Sprintf("%d м2", area)
+				return int32(area)
 			}
 		}
 	}
-	return ""
+	return 0
 }

@@ -26,41 +26,41 @@ func (m *Manager) grabber() {
 			ctx := context.Background()
 
 			for _, site := range m.sitesForParse {
-				go m.grabbedOffers(ctx, site)
+				go m.grabbedApartments(ctx, site)
 			}
 		}
 	}
 }
 
-func (m *Manager) grabbedOffers(ctx context.Context, site Site) {
+func (m *Manager) grabbedApartments(ctx context.Context, site Site) {
 	log.Printf("[grabber] StartGrabber parse `%s`\n", site.Name())
-	offersLinks, err := parser.FindOffersLinksOnSite(site)
+	apartmentsLinks, err := parser.FindApartmentsLinksOnSite(site)
 	if err != nil {
 		sentry.CaptureException(err)
-		log.Printf("[grabber.FindOffersLinksOnSite] Error: %s\n", err)
+		log.Printf("[grabber.FindApartmentsLinksOnSite] Error: %s\n", err)
 		return
 	}
 
-	if len(offersLinks) == 0 {
-		log.Printf("[grabber] No offers for site `%s`\n", site.Name())
+	if len(apartmentsLinks) == 0 {
+		log.Printf("[grabber] No apartments for site `%s`\n", site.Name())
 		return
 	}
 
-	err = m.st.CleanFromExistOrders(ctx, offersLinks, site.Name())
+	err = m.st.CleanFromExistApartments(ctx, apartmentsLinks, site.Name())
 	if err != nil {
 		sentry.CaptureException(err)
 		log.Printf("[grabber.CleanFromExistOrders] Error: %s\n", err)
 		return
 	}
 
-	log.Printf("[grabber] Find %d offer for site `%s`\n", len(offersLinks), site.Name())
+	log.Printf("[grabber] Find %d apartment for site `%s`\n", len(apartmentsLinks), site.Name())
 
-	offers := parser.LoadOffersDetail(offersLinks, site)
-	log.Printf("[grabber] Find %d new offers for site `%s`\n", len(offers), site.Name())
+	apartments := parser.LoadApartmentsDetail(apartmentsLinks, site)
+	log.Printf("[grabber] Find %d new apartments for site `%s`\n", len(apartments), site.Name())
 
-	_, err = m.st.WriteOffers(ctx, offers)
+	_, err = m.st.WriteApartments(ctx, apartments)
 	if err != nil {
 		sentry.CaptureException(err)
-		log.Printf("[grabber.WriteOffer] Error: %s\n", err)
+		log.Printf("[grabber.WriteApartment] Error: %s\n", err)
 	}
 }

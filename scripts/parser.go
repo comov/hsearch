@@ -16,12 +16,12 @@ func main() {
 	//	log.Fatalln(err)
 	//}
 
-	offersLinks, err := parser.FindOffersLinksOnSite(site)
+	apartmentsLinks, err := parser.FindApartmentsLinksOnSite(site)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	for id, link := range offersLinks {
+	for id, link := range apartmentsLinks {
 		log.Println(id, link)
 	}
 }

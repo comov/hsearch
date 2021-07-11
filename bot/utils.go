@@ -67,15 +67,15 @@ func buildParams(config tgbotapi.MediaGroupConfig) (url.Values, error) {
 	return v, nil
 }
 
-// SendOffer - send the offer to a chat and save the delivery report to a chat
+// SendApartment - send the apartment to a chat and save the delivery report to a chat
 //  room
-func (b *Bot) SendOffer(ctx context.Context, offer *structs.Offer, chat *structs.Chat) error {
-	message := tgbotapi.NewMessage(chat.Id, DefaultMessage(offer))
+func (b *Bot) SendApartment(ctx context.Context, apartment *structs.Apartment, chat *structs.Chat) error {
+	message := tgbotapi.NewMessage(chat.ChatId, DefaultMessage(apartment))
 	message.DisableWebPagePreview = true
 	message.ParseMode = tgbotapi.ModeMarkdown
 
 	if !chat.IsChannel() {
-		message.ReplyMarkup = getKeyboard(offer)
+		message.ReplyMarkup = getKeyboard(apartment)
 	}
 
 	msg, err := b.Send(message)
@@ -83,7 +83,7 @@ func (b *Bot) SendOffer(ctx context.Context, offer *structs.Offer, chat *structs
 		return err
 	}
 
-	err = b.storage.SaveMessage(ctx, msg.MessageID, offer.Id, chat.Id, structs.KindOffer)
+	err = b.storage.SaveMessage(ctx, msg.MessageID, apartment.Id, chat.ChatId, structs.KindApartment)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (b *Bot) SendOffer(ctx context.Context, offer *structs.Offer, chat *structs
 		Message: &tgbotapi.Message{
 			MessageID: msg.MessageID,
 			Chat: &tgbotapi.Chat{
-				ID:   chat.Id,
+				ID:   chat.ChatId,
 				Type: "channel",
 			},
 		},

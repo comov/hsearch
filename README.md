@@ -91,11 +91,11 @@ $FileCreateMode 0640
  - [ ] Приемочные тесты
  - [ ] Пройтись по всем TODO в коде
  - [ ] Поправить документацию и описание
- - [ ] Переделать кнопки ответов и вшить в них offerId (description:123)
+ - [ ] Переделать кнопки ответов и вшить в них apartmentId (description:123)
  - [ ] Максимально распараллелить все что можно
  
 ## Admin panel
- - [ ] Statistics by errors/send message/find offers/subscribers/...
+ - [ ] Statistics by errors/send message/find apartments/subscribers/...
  - [ ] Monitoring GoApplication
  - [ ] Build Tag and Latest Commit. Link on GitHub and Docker hub
  - [ ] Self-update from Docker hub

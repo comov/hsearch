@@ -22,56 +22,60 @@ const feedbackText = `Бот будет ждать от тебя сообщен�
 const wrongAnswerText = `Ты что-то не так ввел. Посмотри пример и попробуй еще раз. Осталось попыток: %d`
 const somethingWrong = "Что-то пошло не так..."
 
-func DefaultMessage(offer *structs.Offer) string {
+func DefaultMessage(apartment *structs.Apartment) string {
 	var message strings.Builder
-	message.WriteString(offer.Topic)
+	message.WriteString(apartment.Topic)
 	message.WriteString("\n\n")
 
-	if offer.FullPrice != "" {
-		message.Grow(len("Цена: ") + len(offer.FullPrice) + len("\n"))
+	fullPrice := apartment.GetFullPrice()
+	if fullPrice != "" {
+		message.Grow(len("Цена: ") + len(fullPrice) + len("\n"))
 		message.WriteString("Цена: ")
-		message.WriteString(offer.FullPrice)
+		message.WriteString(fullPrice)
 		message.WriteString("\n")
 	}
 
-	if offer.Rooms != "" {
-		message.Grow(len("Комнат: ") + len(offer.Rooms) + len("\n"))
+	if apartment.Rooms != 0 {
+		roomsStr := fmt.Sprint(apartment.Rooms)
+		message.Grow(len("Комнат: ") + len(roomsStr) + len("\n"))
 		message.WriteString("Комнат: ")
-		message.WriteString(offer.Rooms)
+		message.WriteString(roomsStr)
 		message.WriteString("\n")
 	}
 
-	if offer.Floor != "" {
-		message.Grow(len("Этаж: ") + len(offer.Floor) + len("\n"))
+	if apartment.Floor != 0 {
+		floorStr := fmt.Sprint(apartment.Floor)
+		message.Grow(len("Этаж: ") + len(floorStr) + len("\n"))
 		message.WriteString("Этаж: ")
-		message.WriteString(offer.Floor)
+		message.WriteString(floorStr)
 		message.WriteString("\n")
 	}
 
-	if offer.District != "" {
-		message.Grow(len("Район: ") + len(offer.District) + len("\n"))
+	if apartment.District != "" {
+		message.Grow(len("Район: ") + len(apartment.District) + len("\n"))
 		message.WriteString("Район: ")
-		message.WriteString(offer.District)
+		message.WriteString(apartment.District)
 		message.WriteString("\n")
 	}
 
-	if offer.Area != "" {
-		message.Grow(len("Площадь: ") + len(offer.Area) + len("\n"))
+	if apartment.Area != 0 {
+		areaStr := fmt.Sprint(apartment.Area)
+		message.Grow(len("Площадь: ") + len(areaStr) + len("\n"))
 		message.WriteString("Площадь: ")
-		message.WriteString(offer.Area)
+		message.WriteString(areaStr)
 		message.WriteString("\n")
 	}
 
-	if offer.Phone != "" {
-		message.Grow(len("Номер: ") + len(offer.Phone) + len("\n"))
+	if apartment.Phone != "" {
+		message.Grow(len("Номер: ") + len(apartment.Phone) + len("\n"))
 		message.WriteString("Номер: ")
-		message.WriteString(offer.Phone)
+		message.WriteString(apartment.Phone)
 		message.WriteString("\n")
 	}
 
-	message.Grow(len("\n") + len(offer.Url) + len("\n"))
+	message.Grow(len("\n") + len(apartment.Url) + len("\n"))
 	message.WriteString("\n")
-	message.WriteString(offer.Url)
+	message.WriteString(apartment.Url)
 	message.WriteString("\n")
 	return message.String()
 }

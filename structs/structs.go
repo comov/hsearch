@@ -13,7 +13,7 @@ const (
 	TypeSupergroup = "supergroup"
 	TypeChannel    = "channel"
 
-	KindOffer       = "offer"
+	KindApartment   = "apartment"
 	KindPhoto       = "photo"
 	KindDescription = "description"
 
@@ -31,6 +31,7 @@ type (
 	Chat struct {
 		// information
 		Id       int64
+		ChatId   int64
 		Username string
 		Title    string // in private chats, this field save user full name
 		Type     string
@@ -48,34 +49,37 @@ type (
 		KGS   Price
 	}
 
-	// Offer - posted on the site.
-	Offer struct {
-		Id         uint64
-		Created    int64
-		Site       string
-		Url        string
-		Topic      string
-		FullPrice  string
-		Price      int
-		Currency   string // all currency is lower
-		Phone      string
-		Rooms      string
-		Area       string
-		Floor      string
-		District   string
-		City       string
-		RoomType   string
-		Body       string
-		Images     int
-		ImagesList []string
+	// Apartment - posted on the site.
+	Apartment struct {
+		Id          uint64
+		ExternalId  uint64
+		Created     int64
+		Site        string
+		Url         string
+		Topic       string
+		Price       int32
+		Currency    int32
+		Phone       string
+		Rooms       int32
+		Area        int32
+		Floor       int32
+		MaxFloor    int32
+		District    string
+		City        string
+		RoomType    string
+		Body        string
+		ImagesCount int32
+		ImagesList  []string
+		Lat         float64
+		Lon         float64
 	}
 
-	// Answer - is a ManyToMany to store the user's reaction to the offer.
+	// Answer - is a ManyToMany to store the user's reaction to the apartment.
 	Answer struct {
-		Created int64
-		Chat    uint64
-		Offer   uint64
-		Dislike bool
+		Created   int64
+		Chat      uint64
+		Apartment uint64
+		Dislike   bool
 	}
 
 	// Feedback - a feedback structure hoping to get bug reports and not
@@ -110,4 +114,16 @@ func (p *Price) Scan(value interface{}) error {
 
 func (p *Chat) IsChannel() bool {
 	return p.Type == TypeChannel
+}
+
+var priceMap = map[int32]string{
+	1: "USD",
+	2: "KGS",
+}
+
+func (a *Apartment) GetFullPrice() string {
+	if a.Price > 0 {
+		return fmt.Sprintf("%d %s", a.Price, priceMap[a.Price])
+	}
+	return ""
 }

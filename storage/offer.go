@@ -13,72 +13,77 @@ import (
 	"github.com/comov/hsearch/structs"
 )
 
-// WriteOffer - records Offer in the database with the pictures and returns Id
+// WriteApartment - records Apartment in the database with the pictures and returns Id
 //  to the structure.
-func (c *Connector) WriteOffer(ctx context.Context, offer *structs.Offer) error {
-	_, err := c.Conn.Exec(ctx, `INSERT INTO offer (
-		id,
+func (c *Connector) WriteApartment(ctx context.Context, apartment *structs.Apartment) error {
+	lat, lon := 0.0, 0.0
+	err := c.Conn.QueryRow(ctx, `INSERT INTO hsearch_apartment (
+		external_id,
 		created,
 		site,
 		url,
 		topic,
-		full_price,
 		price,
 		currency,
 		phone,
-		room_numbers,
+		rooms,
 		area,
 		floor,
+		max_floor,
 		district,
 		city,
 		room_type,
 		body,
-		images) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);`,
-		offer.Id,
+		images_count,
+		lat,
+		lon
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id;`,
+		apartment.ExternalId,
 		time.Now().Unix(),
-		offer.Site,
-		offer.Url,
-		offer.Topic,
-		offer.FullPrice,
-		offer.Price,
-		offer.Currency,
-		offer.Phone,
-		offer.Rooms,
-		offer.Area,
-		offer.Floor,
-		offer.District,
-		offer.City,
-		offer.RoomType,
-		offer.Body,
-		offer.Images,
-	)
+		apartment.Site,
+		apartment.Url,
+		apartment.Topic,
+		apartment.Price,
+		apartment.Currency,
+		apartment.Phone,
+		apartment.Rooms,
+		apartment.Area,
+		apartment.Floor,
+		apartment.MaxFloor,
+		apartment.District,
+		apartment.City,
+		apartment.RoomType,
+		apartment.Body,
+		apartment.ImagesCount,
+		lat,
+		lon,
+	).Scan(&apartment.Id)
 	if err != nil && !regexContain.MatchString(err.Error()) {
 		return err
 	}
-	return c.writeImages(ctx, strconv.Itoa(int(offer.Id)), offer.ImagesList)
+	return c.writeImages(ctx, strconv.Itoa(int(apartment.Id)), apartment.ImagesList)
 }
 
-// WriteOffers - writes bulk from offers along with pictures to the fd.
-func (c *Connector) WriteOffers(ctx context.Context, offers []*structs.Offer) (int, error) {
-	newOffersCount := 0
+// WriteApartments - writes bulk from apartments along with pictures to the fd.
+func (c *Connector) WriteApartments(ctx context.Context, apartments []*structs.Apartment) (int, error) {
+	newApartmentsCount := 0
 	// TODO: как видно, сейчас это сделано через простой цикл, но лучше
 	//  предоставить это самому хранилищу. Сделать bulk insert, затем запросить
 	//  Id по ExtId и записать картины. Не было времени сделать это сразу
-	for i := range offers {
-		offer := offers[i]
-		err := c.WriteOffer(ctx, offer)
+	for i := range apartments {
+		apartment := apartments[i]
+		err := c.WriteApartment(ctx, apartment)
 		if err != nil {
-			return newOffersCount, err
+			return newApartmentsCount, err
 		}
 
-		newOffersCount += 1
+		newApartmentsCount += 1
 	}
-	return newOffersCount, nil
+	return newApartmentsCount, nil
 }
 
-// writeImages - так как картинки храняться в отдельной таблице, то пишем мы их
-// отдельно
-func (c *Connector) writeImages(ctx context.Context, offerId string, images []string) error {
+// writeImages - так как картинки хранятся в отдельной таблице, то пишем мы их отдельно
+func (c *Connector) writeImages(ctx context.Context, apartmentId string, images []string) error {
 	if len(images) <= 0 {
 		return nil
 	}
@@ -92,11 +97,11 @@ func (c *Connector) writeImages(ctx context.Context, offerId string, images []st
 	for _, image := range images {
 		paramsPattern += sep + fmt.Sprintf("($%d, $%d, $%d)", paramsNum, paramsNum+1, paramsNum+2) // todo: fixed
 		sep = ", "
-		params = append(params, offerId, image, now)
+		params = append(params, apartmentId, image, now)
 		paramsNum += 3
 	}
 
-	query := "INSERT INTO image (offer_id, path, created) VALUES " + paramsPattern
+	query := "INSERT INTO hsearch_image (apartment_id, path, created) VALUES " + paramsPattern
 	_, err := c.Conn.Exec(ctx, query, params...)
 	if err != nil && !regexContain.MatchString(err.Error()) {
 		return err
@@ -105,15 +110,15 @@ func (c *Connector) writeImages(ctx context.Context, offerId string, images []st
 	return nil
 }
 
-// CleanFromExistOrders - clears the map of offers that are already in
+// CleanFromExistApartments - clears the map of offers that are already in
 //  the database
-func (c *Connector) CleanFromExistOrders(ctx context.Context, offers map[uint64]string, siteName string) error {
+func (c *Connector) CleanFromExistApartments(ctx context.Context, apartments map[uint64]string, siteName string) error {
 	params := make([]interface{}, 0)
 
 	paramsPattern := ""
 	paramsNum := 1
 	sep := ""
-	for id := range offers {
+	for id := range apartments {
 		paramsPattern += fmt.Sprintf("%s$%d", sep, paramsNum)
 		sep = ", "
 		params = append(params, id)
@@ -123,9 +128,9 @@ func (c *Connector) CleanFromExistOrders(ctx context.Context, offers map[uint64]
 	params = append(params, siteName)
 
 	query := fmt.Sprintf(`
-	SELECT id
-	FROM offer
-	WHERE id IN (%s)
+	SELECT external_id
+	FROM hsearch_apartment
+	WHERE external_id IN (%s)
 		AND site = $%d
 	`,
 		paramsPattern,
@@ -146,27 +151,30 @@ func (c *Connector) CleanFromExistOrders(ctx context.Context, offers map[uint64]
 			continue
 		}
 
-		delete(offers, exId)
+		delete(apartments, exId)
 	}
 
 	return nil
 }
 
-// Dislike - mark offer as bad for user or group and return all message ids
+// Dislike - mark apartment as bad for user or group and return all message ids
 //  (description and photos) for delete from chat.
 func (c *Connector) Dislike(ctx context.Context, msgId int, chatId int64) ([]int, error) {
-	offerId := uint64(0)
+	apartmentId := uint64(0)
+	exChatId := uint64(0)
 	msgIds := make([]int, 0)
 	err := c.Conn.QueryRow(
 		ctx,
-		`SELECT offer_id
-				FROM tg_messages
-				WHERE message_id = $1
-					AND chat = $2;`,
+		`SELECT tgm.apartment_id, hc.id
+				FROM hsearch_tgmessage tgm
+				left join hsearch_chat hc on hc.id = tgm.chat_id
+				WHERE tgm.message_id = $1
+					AND hc.chat_id = $2;`,
 		msgId,
 		chatId,
 	).Scan(
-		&offerId,
+		&apartmentId,
+		&exChatId,
 	)
 	if err != nil {
 		return msgIds, err
@@ -174,20 +182,19 @@ func (c *Connector) Dislike(ctx context.Context, msgId int, chatId int64) ([]int
 
 	_, _ = c.Conn.Exec(
 		ctx,
-		`INSERT INTO answer (chat, offer_id, dislike, created)
-				VALUES ($1, $2, $3, $4);`,
-		chatId,
-		offerId,
+		`INSERT INTO hsearch_answer (chat_id, apartment_id, dislike, created) VALUES ($1, $2, $3, $4);`,
+		exChatId,
+		apartmentId,
 		true,
 		time.Now().Unix(),
 	)
 
-	// load all message with offerId and delete
+	// load all message with apartmentId and delete
 	rows, err := c.Conn.Query(
 		ctx,
-		`SELECT message_id FROM tg_messages WHERE offer_id = $1 AND chat = $2;`,
-		offerId,
-		chatId,
+		`SELECT message_id FROM hsearch_tgmessage WHERE apartment_id = $1 AND chat_id = $2;`,
+		apartmentId,
+		exChatId,
 	)
 
 	if err != nil {
@@ -212,39 +219,40 @@ func (c *Connector) Dislike(ctx context.Context, msgId int, chatId int64) ([]int
 	return msgIds, err
 }
 
-func (c *Connector) ReadNextOffer(ctx context.Context, chat *structs.Chat) (*structs.Offer, error) {
-	offer := new(structs.Offer)
+func (c *Connector) ReadNextApartment(ctx context.Context, chat *structs.Chat) (*structs.Apartment, error) {
+	apartment := new(structs.Apartment)
 	now := time.Now()
 
 	var query strings.Builder
 	query.WriteString(`
 	SELECT
 		of.id,
+		of.external_id,
 		of.site,
 		of.url,
 		of.topic,
-		of.full_price,
 		of.price,
 		of.currency,
 		of.phone,
-		of.room_numbers,
+		of.rooms,
 		of.area,
-		of.city,
 		of.floor,
+		of.max_floor,
 		of.district,
+		of.city,
 		of.room_type,
-		of.images,
-		of.body
-	FROM offer of
-	LEFT JOIN answer u on (of.id = u.offer_id AND u.chat = $1)
-	LEFT JOIN tg_messages sm on (of.id = sm.offer_id AND sm.chat = $2)
+		of.body,
+		of.images_count
+	FROM hsearch_apartment of
+	LEFT JOIN hsearch_answer u on (of.id = u.apartment_id AND u.chat_id = $1)
+	LEFT JOIN hsearch_tgmessage sm on (of.id = sm.apartment_id AND sm.chat_id = $2)
 	WHERE of.created >= $3
 		AND (u.dislike is false OR u.dislike IS NULL)
 		AND sm.created IS NULL
 	`)
 
 	if chat.Photo {
-		query.WriteString(" AND of.images != 0")
+		query.WriteString(" AND of.images_count != 0")
 	}
 
 	if chat.KGS.String() != "0:0" || chat.USD.String() != "0:0" {
@@ -257,48 +265,49 @@ func (c *Connector) ReadNextOffer(ctx context.Context, chat *structs.Chat) (*str
 	err := c.Conn.QueryRow(
 		ctx,
 		query.String(),
-		chat.Id,
-		chat.Id,
+		chat.ChatId,
+		chat.ChatId,
 		now.Add(-c.relevanceTime).Unix(),
 	).Scan(
-		&offer.Id,
-		&offer.Site,
-		&offer.Url,
-		&offer.Topic,
-		&offer.FullPrice,
-		&offer.Price,
-		&offer.Currency,
-		&offer.Phone,
-		&offer.Rooms,
-		&offer.Area,
-		&offer.City,
-		&offer.Floor,
-		&offer.District,
-		&offer.RoomType,
-		&offer.Images,
-		&offer.Body,
+		&apartment.Id,
+		&apartment.ExternalId,
+		&apartment.Site,
+		&apartment.Url,
+		&apartment.Topic,
+		&apartment.Price,
+		&apartment.Currency,
+		&apartment.Phone,
+		&apartment.Rooms,
+		&apartment.Area,
+		&apartment.Floor,
+		&apartment.MaxFloor,
+		&apartment.District,
+		&apartment.City,
+		&apartment.RoomType,
+		&apartment.Body,
+		&apartment.ImagesCount,
 	)
 
 	if err != nil && err == pgx.ErrNoRows {
 		return nil, nil
 	}
 
-	return offer, err
+	return apartment, err
 }
 
 func priceFilter(usd, kgs structs.Price) string {
 	var f strings.Builder
 	f.WriteString(" AND(")
 	if usd.String() == "0:0" {
-		f.WriteString(" of.currency = 'usd'")
+		f.WriteString(" of.currency = 1")
 	} else {
-		f.WriteString(fmt.Sprintf(" (of.price between %d and %d and of.currency = 'usd')", usd[0], usd[1]))
+		f.WriteString(fmt.Sprintf(" (of.price between %d and %d and of.currency = 1)", usd[0], usd[1]))
 	}
 
 	if kgs.String() == "0:0" {
-		f.WriteString(" or of.currency = 'kgs'")
+		f.WriteString(" or of.currency = 2")
 	} else {
-		f.WriteString(fmt.Sprintf(" or (of.price between %d and %d and of.currency = 'kgs')", kgs[0], kgs[1]))
+		f.WriteString(fmt.Sprintf(" or (of.price between %d and %d and of.currency = 2)", kgs[0], kgs[1]))
 	}
 
 	f.WriteString(" )")
@@ -330,59 +339,59 @@ func siteFilter(diesel, house, lalafo bool) string {
 	return ""
 }
 
-func (c *Connector) ReadOfferDescription(ctx context.Context, msgId int, chatId int64) (uint64, string, error) {
-	offerId := uint64(0)
+func (c *Connector) ReadApartmentDescription(ctx context.Context, msgId int, chatId int64) (uint64, string, error) {
+	apartmentId := uint64(0)
 	err := c.Conn.QueryRow(
 		ctx,
-		"SELECT offer_id FROM tg_messages WHERE message_id = $1 AND chat = $2;",
+		"SELECT tgm.apartment_id FROM hsearch_tgmessage tgm left join hsearch_chat hc on hc.id = tgm.chat_id WHERE message_id = $1 AND hc.chat_id = $2;",
 		msgId,
 		chatId,
 	).Scan(
-		&offerId,
+		&apartmentId,
 	)
 	if err != nil {
-		return offerId, "", err
+		return apartmentId, "", err
 	}
 
 	description := ""
-	err = c.Conn.QueryRow(ctx, `SELECT body FROM offer of WHERE of.id = $1;`,
-		offerId,
+	err = c.Conn.QueryRow(ctx, `SELECT body FROM hsearch_apartment of WHERE of.id = $1;`,
+		apartmentId,
 	).Scan(
 		&description,
 	)
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return offerId, "Предложение не найдено, возможно было удалено", nil
+			return apartmentId, "Предложение не найдено, возможно было удалено", nil
 		}
-		return offerId, "", err
+		return apartmentId, "", err
 	}
 
-	return offerId, description, nil
+	return apartmentId, description, nil
 }
 
-func (c *Connector) ReadOfferImages(ctx context.Context, msgId int, chatId int64) (uint64, []string, error) {
-	offerId := uint64(0)
+func (c *Connector) ReadApartmentImages(ctx context.Context, msgId int, chatId int64) (uint64, []string, error) {
+	apartmentId := uint64(0)
 	images := make([]string, 0)
 
 	err := c.Conn.QueryRow(
 		ctx,
-		"SELECT offer_id FROM tg_messages WHERE message_id = $1 AND chat = $2;",
+		"SELECT apartment_id FROM hsearch_tgmessage tgm left join hsearch_chat hc on hc.id = tgm.chat_id WHERE tgm.message_id = $1 AND hc.chat_id = $2;",
 		msgId,
 		chatId,
 	).Scan(
-		&offerId,
+		&apartmentId,
 	)
 	if err != nil {
-		return offerId, images, err
+		return apartmentId, images, err
 	}
 
-	rows, err := c.Conn.Query(ctx, `SELECT path FROM image im WHERE im.offer_id = $1;`, offerId)
+	rows, err := c.Conn.Query(ctx, `SELECT path FROM hsearch_image im WHERE im.apartment_id = $1;`, apartmentId)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return offerId, images, nil
+			return apartmentId, images, nil
 		}
-		return offerId, images, err
+		return apartmentId, images, err
 	}
 
 	defer rows.Close()
@@ -393,29 +402,11 @@ func (c *Connector) ReadOfferImages(ctx context.Context, msgId int, chatId int64
 			&image,
 		)
 		if err != nil {
-			log.Println("[ReadOfferImages.Scan] error:", err)
+			log.Println("[ReadApartmentImages.Scan] error:", err)
 			continue
 		}
 		images = append(images, image)
 	}
 
-	return offerId, images, nil
-}
-
-// CleanExpiredOffers - just clean offer table
-func (c *Connector) CleanExpiredOffers(ctx context.Context, expireDate int64) error {
-	_, err := c.Conn.Exec(ctx, `DELETE FROM offer WHERE created < $1`, expireDate)
-	return err
-}
-
-// CleanExpiredImages - just clean image table
-func (c *Connector) CleanExpiredImages(ctx context.Context, expireDate int64) error {
-	_, err := c.Conn.Exec(ctx, `DELETE FROM image WHERE created < $1`, expireDate)
-	return err
-}
-
-// CleanExpiredAnswers - just clean answer table
-func (c *Connector) CleanExpiredAnswers(ctx context.Context, expireDate int64) error {
-	_, err := c.Conn.Exec(ctx, `DELETE FROM answer WHERE created < $1`, expireDate)
-	return err
+	return apartmentId, images, nil
 }
